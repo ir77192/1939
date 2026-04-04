@@ -68,8 +68,12 @@ body.game-active{overflow:hidden;}
 .country.adj-neutral{stroke:#4a8a2a;stroke-width:.8;stroke-dasharray:3,2;}
 .country.adj-enemy{stroke:#c04040;stroke-width:.8;stroke-dasharray:3,2;}
 
+/* 오른쪽 패널 — 모바일에서도 표시 (슬라이드업 방식) */
 .right-panel{width:210px;border-left:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
-@media(max-width:640px){.right-panel{display:none;}}
+@media(max-width:640px){
+  .right-panel{display:none;} /* 모바일: 패널 숨기고 모달로 대체 */
+}
+
 .panel-hdr{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--text3);padding:5px 8px;border-bottom:1px solid var(--border);}
 #ter-info{padding:8px;border-bottom:1px solid var(--border);flex-shrink:0;min-height:155px;}
 .ter-name{font-family:'Cinzel',serif;font-size:12px;color:var(--gold2);margin-bottom:6px;}
@@ -114,6 +118,40 @@ body.game-active{overflow:hidden;}
 .act-desc{font-size:9px;color:var(--text2);line-height:1.3;}
 .act-used-lbl{position:absolute;top:3px;right:4px;font-size:8px;color:var(--text3);}
 
+/* ── 모바일 영토 정보 모달 ── */
+#mob-ter-modal{
+  position:fixed;inset:0;z-index:180;
+  background:rgba(0,0,0,.82);
+  display:none;align-items:flex-end;justify-content:center;
+  padding:0;
+}
+#mob-ter-modal.show{display:flex;}
+.mob-ter-box{
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:6px 6px 0 0;
+  width:100%;max-width:500px;
+  padding:16px 18px 28px;
+  max-height:70vh;overflow-y:auto;
+}
+.mob-ter-close{
+  float:right;background:none;border:none;color:var(--text3);font-size:18px;
+  cursor:pointer;padding:0 4px;line-height:1;
+}
+/* 모바일 전쟁 버튼 — 터치 영역 크게 */
+.mob-atk-btn{
+  display:block;width:100%;margin-top:10px;
+  font-family:'Cinzel',serif;font-size:13px;letter-spacing:1px;
+  padding:14px 10px;border-radius:4px;cursor:pointer;
+  line-height:1.4;text-align:center;
+  /* 터치 피드백 */
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.mob-atk-btn.war-btn{border:1px solid var(--red2);color:var(--red2);background:transparent;}
+.mob-atk-btn.blitz-btn{border:1px solid var(--amber2);color:var(--amber2);background:transparent;}
+.mob-atk-btn:disabled{opacity:.25;cursor:not-allowed;border:1px solid var(--border2);color:var(--text3);}
+.mob-atk-btn:not(:disabled):active{opacity:.7;}
+
 /* BATTLE OVERLAY */
 #battle-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;padding:1rem;}
 #battle-overlay.show{display:flex;}
@@ -156,7 +194,7 @@ body.game-active{overflow:hidden;}
 .br-ttl.v{color:var(--green2);}
 .br-ttl.f{color:var(--red2);}
 .br-det{font-size:10px;color:var(--text2);line-height:1.8;}
-.battle-close{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;padding:8px 24px;border-radius:2px;cursor:pointer;background:transparent;border:1px solid var(--gold);color:var(--gold);margin-top:12px;display:block;width:100%;transition:all .15s;}
+.battle-close{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;padding:8px 24px;border-radius:2px;cursor:pointer;background:transparent;border:1px solid var(--gold);color:var(--gold);margin-top:12px;display:block;width:100%;transition:all .15s;touch-action:manipulation;}
 .battle-close:hover{background:rgba(200,168,75,.08);}
 
 #modal{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.86);display:none;align-items:center;justify-content:center;padding:1rem;}
@@ -165,7 +203,7 @@ body.game-active{overflow:hidden;}
 .modal-title{font-family:'Cinzel',serif;font-size:13px;color:var(--gold2);letter-spacing:2px;margin-bottom:8px;}
 .modal-body{font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;}
 .modal-btns{display:flex;gap:7px;flex-wrap:wrap;}
-.mbtn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:2px;cursor:pointer;transition:all .15s;background:transparent;min-height:33px;}
+.mbtn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:2px;cursor:pointer;transition:all .15s;background:transparent;min-height:33px;touch-action:manipulation;}
 .mbtn-gold{border:1px solid var(--gold);color:var(--gold);}
 .mbtn-gold:hover{background:rgba(200,168,75,.08);}
 .mbtn-gray{border:1px solid var(--border2);color:var(--text2);}
@@ -245,6 +283,14 @@ body.game-active{overflow:hidden;}
       </div>
     </div>
     <div class="action-panel"><div class="action-grid" id="action-grid"></div></div>
+  </div>
+</div>
+
+<!-- 모바일 영토 정보 모달 (슬라이드업) -->
+<div id="mob-ter-modal">
+  <div class="mob-ter-box" id="mob-ter-box">
+    <button class="mob-ter-close" onclick="closeMobTer()">✕</button>
+    <div id="mob-ter-content"></div>
   </div>
 </div>
 
@@ -368,6 +414,9 @@ const I2N={DEU:'독일',AUT:'오스트리아',CZE:'체코',POL:'폴란드',BEL:'
 let G={},own={},geoData=null,selNid=null;
 let msvg,proj,pg,mG,mZoom;
 
+// 모바일 감지
+const isMobile=()=>window.innerWidth<=640;
+
 function initState(nid){
   const n=NATIONS.find(x=>x.id===nid);
   G={
@@ -437,22 +486,41 @@ function drawMap(){
     .attr('d',pg)
     .attr('fill',d=>COLORS[ownerOf(getISO(d.id))]||COLORS.neutral)
     .on('mouseover',function(ev,d){
-      const iso=getISO(d.id),o=ownerOf(iso);
-      if(iso!==G.selISO)d3.select(this).attr('fill',HOVERS[o]||HOVERS.neutral);
-      tipShow(ev,iso,o,adj.has(iso));
+      // 마우스만 (터치 제외)
+      if(ev.type==='mouseover'){
+        const iso=getISO(d.id),o=ownerOf(iso);
+        if(iso!==G.selISO)d3.select(this).attr('fill',HOVERS[o]||HOVERS.neutral);
+        tipShow(ev,iso,o,adj.has(iso));
+      }
     })
-    .on('mousemove',tipMove)
+    .on('mousemove',ev=>{if(ev.type==='mousemove')tipMove(ev);})
     .on('mouseout',function(ev,d){
-      const iso=getISO(d.id),o=ownerOf(iso);
-      if(iso!==G.selISO)d3.select(this).attr('fill',COLORS[o]||COLORS.neutral);
-      tipHide();
+      if(ev.type==='mouseout'){
+        const iso=getISO(d.id),o=ownerOf(iso);
+        if(iso!==G.selISO)d3.select(this).attr('fill',COLORS[o]||COLORS.neutral);
+        tipHide();
+      }
     })
-    .on('click touchend',function(ev,d){
-      ev.preventDefault();tipHide();
-      const iso=getISO(d.id);
-      if(!iso)return;
-      G.selISO=iso;drawMap();renderTerInfo(iso);
+    // 클릭/터치 통합 핸들러
+    .on('click',handleMapClick)
+    .on('touchend',function(ev,d){
+      ev.preventDefault();
+      ev.stopPropagation();
+      handleMapClick.call(this,ev,d);
     });
+}
+
+function handleMapClick(ev,d){
+  tipHide();
+  const iso=getISO(d.id);
+  if(!iso)return;
+  G.selISO=iso;
+  drawMap();
+  renderTerInfo(iso);
+  // 모바일: 슬라이드업 모달 표시
+  if(isMobile()){
+    renderMobTerModal(iso);
+  }
 }
 
 function drawLegend(){
@@ -515,14 +583,9 @@ function renderBars(){
 }
 
 // ══════════════════════════════════
-// TERRITORY INFO PANEL
+// TERRITORY INFO — 공통 HTML 빌더
 // ══════════════════════════════════
-function renderTerInfo(iso){
-  const ip=document.getElementById('ter-info');
-  if(!iso){
-    ip.innerHTML='<div style="font-size:10px;color:var(--text3);padding:4px">지도에서 국가를 클릭하세요.<br><br><span style="color:#4a8a2a">◆ 초록 점선</span> = 공략 가능<br><span style="color:#c04040">◆ 빨간 점선</span> = 적국 인접</div>';
-    return;
-  }
+function buildTerHTML(iso, isMob){
   const o=ownerOf(iso);
   const name=I2N[iso]||iso;
   const flag=NFLAGS[o]||'';
@@ -538,40 +601,61 @@ function renderTerInfo(iso){
 
   const canAtk=!isOwn&&isAdj&&G.actsUsed<3&&!G.actsUsedSet.has('war')&&G.mil>=15&&G.eco>=8;
   const canBlitz=!isOwn&&isAdj&&G.actsUsed<3&&!G.actsUsedSet.has('blitz')&&G.mil>=35&&G.eco>=14;
-  const actsDone=G.actsUsed>=3;
-  const warDone=G.actsUsedSet.has('war');
-  const blitzDone=G.actsUsedSet.has('blitz');
 
-  let atkReason='';
-  if(!isAdj)atkReason='인접하지 않음';
-  else if(actsDone)atkReason='행동력 소진';
-  else if(warDone)atkReason='이미 전쟁 선포함';
-  else if(G.mil<15)atkReason='군사력 15 필요';
-  else if(G.eco<8)atkReason='경제력 8 필요';
+  let atkReason='',blitzReason='';
+  if(!isAdj){atkReason='인접하지 않음';blitzReason='인접하지 않음';}
+  else if(G.actsUsed>=3){atkReason='행동력 소진';blitzReason='행동력 소진';}
+  else{
+    if(G.actsUsedSet.has('war'))atkReason='이미 전쟁 선포함';
+    else if(G.mil<15)atkReason='군사력 15 필요';
+    else if(G.eco<8)atkReason='경제력 8 필요';
+    if(G.actsUsedSet.has('blitz'))blitzReason='이미 사용함';
+    else if(G.mil<35)blitzReason='군사력 35 필요';
+    else if(G.eco<14)blitzReason='경제력 14 필요';
+  }
 
-  let blitzReason='';
-  if(!isAdj)blitzReason='인접하지 않음';
-  else if(actsDone)blitzReason='행동력 소진';
-  else if(blitzDone)blitzReason='이미 사용함';
-  else if(G.mil<35)blitzReason='군사력 35 필요';
-  else if(G.eco<14)blitzReason='경제력 14 필요';
+  const btnClass=isMob?'mob-atk-btn':'ter-atk-btn';
 
-  ip.innerHTML=`
+  return `
     <div class="ter-name">${flag} ${name}</div>
     <div class="ter-row">지배<span>${oName}</span></div>
     <div class="ter-row">상태<span style="color:${isOwn?'var(--gold2)':isAdj?'#c04040':'var(--text3)'}">${isOwn?'🟡 아군':isAdj?'⚠ 인접':'○ 원거리'}</span></div>
     ${!isOwn?`
     <div class="ter-row">방어력<span style="color:var(--red2)">${defPow}</span></div>
     <div class="ter-row">내 군사력<span style="color:var(--gold)">${atkPow}</span></div>
-    <button class="ter-atk-btn war-btn" ${!canAtk?'disabled':''} onclick="startBattle('${iso}','normal')">
+    <button class="${btnClass} war-btn" ${!canAtk?'disabled':''} onclick="startBattle('${iso}','normal')">
       ⚔ 전쟁 선포 — 군-12 경-8<br>
-      <span style="font-size:9px">${canAtk?`승리 확률 ${winPct}%`:atkReason}</span>
+      <span style="font-size:${isMob?'11':'9'}px">${canAtk?`승리 확률 ${winPct}%`:atkReason}</span>
     </button>
-    <button class="ter-atk-btn blitz-btn" ${!canBlitz?'disabled':''} onclick="startBattle('${iso}','blitz')">
+    <button class="${btnClass} blitz-btn" ${!canBlitz?'disabled':''} onclick="startBattle('${iso}','blitz')">
       ⚡ 전격전 — 군-22 경-14<br>
-      <span style="font-size:9px">${canBlitz?`승리 확률 ${blitzPct}%`:blitzReason}</span>
+      <span style="font-size:${isMob?'11':'9'}px">${canBlitz?`승리 확률 ${blitzPct}%`:blitzReason}</span>
     </button>`:'<div style="font-size:10px;color:var(--text3);margin-top:6px">아군 영토</div>'}`;
 }
+
+function renderTerInfo(iso){
+  const ip=document.getElementById('ter-info');
+  if(!iso){
+    ip.innerHTML='<div style="font-size:10px;color:var(--text3);padding:4px">지도에서 국가를 클릭하세요.<br><br><span style="color:#4a8a2a">◆ 초록 점선</span> = 공략 가능<br><span style="color:#c04040">◆ 빨간 점선</span> = 적국 인접</div>';
+    return;
+  }
+  ip.innerHTML=buildTerHTML(iso,false);
+}
+
+// ── 모바일 슬라이드업 모달 ──
+function renderMobTerModal(iso){
+  if(!iso)return;
+  document.getElementById('mob-ter-content').innerHTML=buildTerHTML(iso,true);
+  document.getElementById('mob-ter-modal').classList.add('show');
+}
+function closeMobTer(){
+  document.getElementById('mob-ter-modal').classList.remove('show');
+}
+
+// 모달 배경 클릭 시 닫기
+document.getElementById('mob-ter-modal').addEventListener('click',function(e){
+  if(e.target===this)closeMobTer();
+});
 
 function calcDefPower(iso,o){
   const BASE={germany:72,uk:62,ussr:78,usa:68,japan:66,france:56,italy:50,china:44,neutral:18};
@@ -588,6 +672,9 @@ function calcWinRate(atk,def){
 // BATTLE SYSTEM
 // ══════════════════════════════════
 function startBattle(iso,mode){
+  // 모바일 모달 닫기
+  closeMobTer();
+
   const o=ownerOf(iso);
   if(o===G.nid)return;
   const adj=getAdj();
@@ -604,7 +691,6 @@ function startBattle(iso,mode){
   const defPow=calcDefPower(iso,o);
   const atkBase=G.mil+(isBlitz?15:0);
 
-  // Apply costs immediately
   G.mil=Math.max(0,G.mil-milCost);
   G.eco=Math.max(0,G.eco-ecoCost);
   G.warCount++;
@@ -634,10 +720,8 @@ function simulateBattle(atkPow,defPow,isBlitz,atkName,defName){
   let atk=atkPow,def=defPow;
   let atkTot=0,defTot=0;
   const maxR=isBlitz?4:7;
-
   const atkTactics=['전차 돌격','포병 집중 사격','항공 폭격','보병 돌격','측면 우회 기동','화력 집중','공수부대 투입'];
   const defTactics=['방어선 구축','반격 실시','저격수 교란','지뢰 매설','예비대 투입','진지 사수','포병 방어'];
-
   let r;
   for(r=1;r<=maxR;r++){
     const ar=Math.floor(atk*(0.28+Math.random()*0.44));
@@ -658,7 +742,6 @@ function simulateBattle(atkPow,defPow,isBlitz,atkName,defName){
     }
     if(def<=0||atk<=0)break;
   }
-
   const won=atk>def||(r>maxR&&atkTot>defTot);
   const atkLoss=Math.max(2,Math.floor((atkPow-atk)*0.45+2+Math.random()*5));
   return {won,turns:r,lines,atkTot,defTot,atkLoss,atkFinal:atk,defFinal:def};
@@ -667,12 +750,10 @@ function simulateBattle(atkPow,defPow,isBlitz,atkName,defName){
 function showBattleUI(iso,name,oName,o,isBlitz,atkPow,defPow,res){
   document.getElementById('bt-title').textContent=`${isBlitz?'⚡ 전격전':'⚔ 전쟁'} — ${name}`;
   document.getElementById('bt-sub').textContent=`${G.nation.name} vs ${oName}`;
-
   const total=atkPow+defPow;
   const ap=Math.round(atkPow/total*100);
   const dp=100-ap;
   const winR=Math.round(calcWinRate(atkPow,defPow)*100);
-
   document.getElementById('battle-body').innerHTML=`
     <div class="battle-vs">
       <div class="battle-side atk">
@@ -689,7 +770,6 @@ function showBattleUI(iso,name,oName,o,isBlitz,atkPow,defPow,res){
         <div class="bs-sub">방어력<br>${name}</div>
       </div>
     </div>
-
     <div class="bbar-wrap">
       <div class="bbar-lbl"><span>아군 ${atkPow}</span><span>적 ${defPow}</span></div>
       <div class="bbar-track">
@@ -697,7 +777,6 @@ function showBattleUI(iso,name,oName,o,isBlitz,atkPow,defPow,res){
         <div class="bbar-d" style="width:${dp}%"></div>
       </div>
     </div>
-
     <div class="phase-title">전투 경과 — ${res.turns}라운드</div>
     <div class="battle-log">
       ${res.lines.map(l=>`<div class="bl ${l.c}"><span style="color:var(--text3);font-size:9px">[${l.t}]</span> ${l.msg}</div>`).join('')}
@@ -705,7 +784,6 @@ function showBattleUI(iso,name,oName,o,isBlitz,atkPow,defPow,res){
       <div class="bl n">총 아군 화력 ${res.atkTot} | 총 적 화력 ${res.defTot}</div>
       <div class="bl n">아군 잔여 전투력 ${res.atkFinal} | 적 잔여 ${res.defFinal}</div>
     </div>
-
     <div class="battle-result ${res.won?'v':'f'}">
       <div class="br-ttl ${res.won?'v':'f'}">${res.won?'🏆 점령 성공!':'💀 공략 실패'}</div>
       <div class="br-det">
@@ -760,11 +838,11 @@ function renderActs(){
     const btn=document.createElement('button');
     btn.className='act-btn'+(used?' used':'');btn.disabled=!can;
     btn.innerHTML=`<div class="act-icon">${a.icon}</div><span class="act-name">${a.name}</span><span class="act-cost">${a.cost}</span><div class="act-desc">${a.desc}</div>${used?'<div class="act-used-lbl">완료</div>':''}`;
-    btn.onclick=()=>{
+    btn.addEventListener('click',()=>{
       if(!canAct(a))return;
       if(a.id==='tech'){a.exec();return;}
       a.exec();G.actsUsed++;G.actsUsedSet.add(a.id);renderAll();renderTerInfo(G.selISO);
-    };
+    });
     grid.appendChild(btn);
   });
 }
@@ -796,17 +874,14 @@ function nextTurn(){
     else still.push(f);
   });
   G.factQ=still;
-
   const ter=playerTer();
   G.eco=Math.min(100,G.eco+2+Math.floor(ter*0.6)+G.permEco);
   G.mil=Math.min(100,G.mil+1+Math.floor(ter*0.2));
   G.pol=Math.min(100,G.pol+1);G.res=Math.min(100,G.res+1);
-
   if(G.nid==='usa')G.eco=Math.min(100,G.eco+3);
   if(G.nid==='ussr')G.mil=Math.min(100,G.mil+2);
   if(G.nid==='uk')G.pol=Math.min(100,G.pol+2);
   if(G.nid==='germany'&&ter>4)G.mil=Math.min(100,G.mil+2);
-
   aiExpand();
   G.turn++;G.month+=3;if(G.month>12){G.month-=12;G.year++;}
   G.actsUsed=0;G.actsUsedSet=new Set();
@@ -846,7 +921,7 @@ function showModal(title,body,btns){
   btns.forEach(b=>{
     const btn=document.createElement('button');
     btn.className=`mbtn ${b.cls}`;btn.textContent=b.label;
-    btn.onclick=()=>{closeModal();b.fn&&b.fn();};
+    btn.addEventListener('click',()=>{closeModal();b.fn&&b.fn();});
     bb.appendChild(btn);
   });
   document.getElementById('modal').classList.add('show');
