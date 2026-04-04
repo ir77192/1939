@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>1939 — 대전략</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+:root{
+  --bg:#0a0a08;--bg2:#111110;--bg3:#181815;--bg4:#1e1e19;
+  --border:#252520;--border2:#353530;--border3:#454540;
+  --text:#d0c490;--text2:#857850;--text3:#504838;
+  --gold:#c8a84b;--gold2:#e8c86a;
+  --red:#b83030;--red2:#e04040;
+  --blue2:#5080c0;--green2:#50a040;--amber2:#d09030;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Crimson Text',serif;-webkit-tap-highlight-color:transparent;}
+body.game-active{overflow:hidden;}
+
+#title{min-height:100vh;background:radial-gradient(ellipse at 50% 35%,#1c1408 0%,#0a0a08 65%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem 1rem 3rem;overflow-y:auto;}
+.title-deco{width:1px;height:70px;background:linear-gradient(to bottom,transparent,var(--gold),transparent);margin-bottom:2rem;}
+.title-yr{font-family:'Cinzel',serif;font-size:clamp(48px,10vw,96px);font-weight:700;letter-spacing:clamp(8px,3vw,20px);color:var(--gold2);text-shadow:0 0 60px rgba(200,168,75,.3);}
+.title-sub{font-family:'Cinzel',serif;font-size:clamp(8px,1.5vw,13px);letter-spacing:clamp(3px,1.5vw,8px);color:var(--text3);margin-top:.3rem;margin-bottom:2.5rem;}
+.title-h2{font-size:13px;color:var(--text2);margin-bottom:1rem;letter-spacing:3px;font-family:'Cinzel',serif;}
+.nation-grid{display:grid;grid-template-columns:repeat(4,176px);gap:7px;margin-bottom:2rem;}
+@media(max-width:760px){.nation-grid{grid-template-columns:repeat(2,160px);}}
+.ncard{border:1px solid var(--border);border-radius:3px;padding:11px;cursor:pointer;background:var(--bg2);transition:all .18s;position:relative;overflow:hidden;}
+.ncard:hover{border-color:var(--border3);}
+.ncard.sel{border-color:var(--gold);background:rgba(200,168,75,.06);}
+.ncard.sel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,var(--gold),transparent);}
+.ncard-flag{font-size:22px;margin-bottom:5px;}
+.ncard-name{font-family:'Cinzel',serif;font-size:10px;font-weight:600;color:var(--gold);letter-spacing:1px;margin-bottom:3px;}
+.ncard-focus{font-size:11px;color:var(--text2);margin-bottom:6px;font-style:italic;line-height:1.3;}
+.ncard-stats{display:flex;gap:3px;flex-wrap:wrap;}
+.nstat{font-size:9px;padding:1px 5px;border-radius:2px;background:var(--bg3);color:var(--text3);border:1px solid var(--border);}
+.start-btn{font-family:'Cinzel',serif;font-size:12px;letter-spacing:5px;padding:12px 48px;background:transparent;border:1px solid var(--gold);color:var(--gold2);cursor:pointer;border-radius:2px;transition:all .2s;}
+.start-btn:hover:not(:disabled){background:rgba(200,168,75,.08);}
+.start-btn:disabled{opacity:.25;cursor:not-allowed;}
+
+#game{display:none;flex-direction:column;height:100svh;height:100vh;}
+.topbar{display:flex;align-items:center;gap:5px;padding:4px 10px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;flex-wrap:wrap;min-height:40px;}
+.tb-flag{font-size:15px;}
+.tb-nation{font-family:'Cinzel',serif;font-size:10px;color:var(--gold);letter-spacing:1px;}
+.tb-date{font-size:10px;color:var(--text3);font-style:italic;}
+.tb-sep{width:1px;height:12px;background:var(--border2);}
+.tb-stat{font-size:10px;color:var(--text3);}
+.tb-stat b{color:var(--text);font-weight:normal;}
+.tb-acts{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text3);}
+.tb-acts b{color:var(--gold2);}
+.tb-dom{font-size:10px;color:var(--amber2);font-family:'Cinzel',serif;}
+.turn-btn{margin-left:auto;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;padding:5px 12px;background:transparent;border:1px solid var(--gold);color:var(--gold);cursor:pointer;border-radius:2px;transition:all .15s;white-space:nowrap;}
+.turn-btn:hover{background:rgba(200,168,75,.08);}
+.dom-bar{height:2px;background:var(--border);flex-basis:100%;}
+.dom-fill{height:100%;background:linear-gradient(to right,#a06818,var(--gold2));transition:width .5s;}
+
+.gamebody{display:flex;flex:1;overflow:hidden;min-height:0;}
+.map-wrap{flex:1;position:relative;overflow:hidden;background:#060e18;min-width:0;}
+#map-svg{width:100%;height:100%;display:block;touch-action:none;}
+.loading-map{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;letter-spacing:2px;z-index:5;}
+
+.country{stroke:#080e16;stroke-width:.3;cursor:pointer;transition:fill .2s;}
+.country:hover{stroke:var(--gold2);stroke-width:.8;}
+.country.player-own{stroke:rgba(200,168,75,.5);stroke-width:.6;}
+.country.selected{stroke:var(--gold2);stroke-width:1.6;}
+.country.adj-neutral{stroke:#4a8a2a;stroke-width:.8;stroke-dasharray:3,2;}
+.country.adj-enemy{stroke:#c04040;stroke-width:.8;stroke-dasharray:3,2;}
+
+.right-panel{width:210px;border-left:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+@media(max-width:640px){.right-panel{display:none;}}
+.panel-hdr{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2px;color:var(--text3);padding:5px 8px;border-bottom:1px solid var(--border);}
+#ter-info{padding:8px;border-bottom:1px solid var(--border);flex-shrink:0;min-height:155px;}
+.ter-name{font-family:'Cinzel',serif;font-size:12px;color:var(--gold2);margin-bottom:6px;}
+.ter-row{font-size:10px;color:var(--text2);margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;}
+.ter-row span{color:var(--text);}
+.ter-atk-btn{width:100%;margin-top:7px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;padding:7px 6px;border-radius:2px;cursor:pointer;transition:all .15s;background:transparent;line-height:1.4;text-align:center;}
+.ter-atk-btn.war-btn{border:1px solid var(--red2);color:var(--red2);}
+.ter-atk-btn.war-btn:hover:not(:disabled){background:rgba(200,64,64,.1);}
+.ter-atk-btn.blitz-btn{border:1px solid var(--amber2);color:var(--amber2);margin-top:4px;}
+.ter-atk-btn.blitz-btn:hover:not(:disabled){background:rgba(208,144,48,.1);}
+.ter-atk-btn:disabled{opacity:.22;cursor:not-allowed;border:1px solid var(--border2);color:var(--text3);}
+#log-list{flex:1;overflow-y:auto;padding:4px;}
+.log-item{font-size:10px;line-height:1.4;padding:3px 5px;border-radius:2px;margin-bottom:2px;border-left:2px solid transparent;color:var(--text2);}
+.log-item.war{border-left-color:var(--red2);color:#c05050;}
+.log-item.won{border-left-color:var(--green2);color:#5a9a40;}
+.log-item.eco{border-left-color:var(--green2);}
+.log-item.diplo{border-left-color:var(--blue2);}
+.log-item.tech{border-left-color:var(--amber2);}
+.log-item.event{border-left-color:var(--gold);color:var(--gold);}
+.log-item.ai{border-left-color:var(--red);color:#904040;}
+
+.bottom{display:flex;border-top:1px solid var(--border);background:var(--bg2);flex-shrink:0;height:155px;}
+@media(max-width:580px){.bottom{height:auto;flex-direction:column;max-height:50vh;overflow-y:auto;}}
+.stat-panel{width:162px;border-right:1px solid var(--border);padding:8px;flex-shrink:0;}
+@media(max-width:580px){.stat-panel{width:100%;border-right:none;border-bottom:1px solid var(--border);padding:5px 10px;display:flex;flex-wrap:wrap;gap:2px 10px;}}
+.stat-row{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+@media(max-width:580px){.stat-row{flex:1 1 44%;min-width:110px;margin-bottom:0;}}
+.stat-label{font-size:10px;color:var(--text3);width:42px;flex-shrink:0;}
+.stat-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.stat-fill{height:100%;border-radius:2px;transition:width .35s;}
+.stat-val{font-size:10px;color:var(--text);width:24px;text-align:right;}
+.stat-extra{margin-top:5px;font-size:9px;color:var(--text3);line-height:1.7;}
+.action-panel{flex:1;padding:6px 8px;overflow-x:auto;min-width:0;}
+.action-grid{display:flex;gap:5px;height:100%;align-items:flex-start;padding-bottom:2px;}
+.act-btn{border:1px solid var(--border);border-radius:3px;padding:6px 8px;background:var(--bg3);cursor:pointer;text-align:left;min-width:100px;max-width:122px;transition:all .15s;color:var(--text);flex-shrink:0;position:relative;}
+.act-btn:hover:not(:disabled){border-color:var(--border3);background:var(--bg4);}
+.act-btn:disabled,.act-btn.used{opacity:.28;cursor:not-allowed;}
+.act-btn.used{border-style:dashed;}
+.act-icon{font-size:13px;margin-bottom:2px;}
+.act-name{font-family:'Cinzel',serif;font-size:9px;color:var(--gold);letter-spacing:1px;display:block;margin-bottom:2px;}
+.act-cost{font-size:9px;color:var(--text3);display:block;margin-bottom:2px;}
+.act-desc{font-size:9px;color:var(--text2);line-height:1.3;}
+.act-used-lbl{position:absolute;top:3px;right:4px;font-size:8px;color:var(--text3);}
+
+/* BATTLE OVERLAY */
+#battle-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;padding:1rem;}
+#battle-overlay.show{display:flex;}
+.battle-box{background:var(--bg2);border:1px solid var(--border2);border-radius:4px;max-width:500px;width:100%;max-height:92vh;overflow-y:auto;}
+.battle-hdr{padding:14px 18px 10px;border-bottom:1px solid var(--border);}
+.battle-title{font-family:'Cinzel',serif;font-size:15px;color:var(--gold2);letter-spacing:2px;}
+.battle-subtitle{font-size:11px;color:var(--text3);margin-top:3px;}
+.battle-body{padding:14px 18px;}
+
+.battle-vs{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.battle-side{flex:1;background:var(--bg3);border-radius:3px;padding:10px;text-align:center;}
+.battle-side.atk{border:1px solid rgba(200,168,75,.25);}
+.battle-side.def{border:1px solid rgba(224,64,64,.25);}
+.bs-flag{font-size:22px;margin-bottom:4px;}
+.bs-name{font-family:'Cinzel',serif;font-size:9px;color:var(--text2);margin-bottom:6px;letter-spacing:1px;}
+.bs-pow{font-family:'Cinzel',serif;font-size:26px;font-weight:700;}
+.bs-pow.a{color:var(--gold2);}
+.bs-pow.d{color:var(--red2);}
+.bs-sub{font-size:9px;color:var(--text3);margin-top:4px;line-height:1.5;}
+.bvs{font-family:'Cinzel',serif;font-size:18px;color:var(--text3);}
+
+.bbar-wrap{margin-bottom:10px;}
+.bbar-lbl{display:flex;justify-content:space-between;font-size:9px;color:var(--text3);margin-bottom:3px;}
+.bbar-track{height:7px;background:var(--border);border-radius:3px;overflow:hidden;display:flex;}
+.bbar-a{background:linear-gradient(to right,var(--gold),var(--amber2));height:100%;transition:width .5s;}
+.bbar-d{background:linear-gradient(to right,var(--red2),var(--red));height:100%;transition:width .5s;}
+
+.phase-title{font-family:'Cinzel',serif;font-size:9px;color:var(--text3);letter-spacing:2px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.battle-log{background:var(--bg3);border-radius:3px;padding:8px 10px;font-size:10px;color:var(--text2);line-height:1.85;max-height:150px;overflow-y:auto;border:1px solid var(--border);}
+.bl{margin-bottom:1px;}
+.bl.g{color:#50a040;}
+.bl.b{color:#d05050;}
+.bl.n{color:var(--text3);}
+.bl.r{color:var(--gold2);font-family:'Cinzel',serif;font-size:11px;margin-top:5px;}
+
+.battle-result{margin-top:12px;padding:10px 12px;border-radius:3px;text-align:center;}
+.battle-result.v{background:rgba(40,90,30,.2);border:1px solid rgba(60,150,40,.3);}
+.battle-result.f{background:rgba(160,40,40,.15);border:1px solid rgba(210,50,50,.25);}
+.br-ttl{font-family:'Cinzel',serif;font-size:14px;letter-spacing:3px;margin-bottom:5px;}
+.br-ttl.v{color:var(--green2);}
+.br-ttl.f{color:var(--red2);}
+.br-det{font-size:10px;color:var(--text2);line-height:1.8;}
+.battle-close{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;padding:8px 24px;border-radius:2px;cursor:pointer;background:transparent;border:1px solid var(--gold);color:var(--gold);margin-top:12px;display:block;width:100%;transition:all .15s;}
+.battle-close:hover{background:rgba(200,168,75,.08);}
+
+#modal{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.86);display:none;align-items:center;justify-content:center;padding:1rem;}
+#modal.show{display:flex;}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:4px;padding:18px 20px;max-width:420px;width:100%;max-height:85vh;overflow-y:auto;}
+.modal-title{font-family:'Cinzel',serif;font-size:13px;color:var(--gold2);letter-spacing:2px;margin-bottom:8px;}
+.modal-body{font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px;}
+.modal-btns{display:flex;gap:7px;flex-wrap:wrap;}
+.mbtn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;padding:7px 14px;border-radius:2px;cursor:pointer;transition:all .15s;background:transparent;min-height:33px;}
+.mbtn-gold{border:1px solid var(--gold);color:var(--gold);}
+.mbtn-gold:hover{background:rgba(200,168,75,.08);}
+.mbtn-gray{border:1px solid var(--border2);color:var(--text2);}
+.mbtn-gray:hover{background:var(--bg3);}
+
+#end-screen{display:none;position:fixed;inset:0;z-index:150;background:radial-gradient(ellipse at 50% 40%,#1a1508 0%,#0a0a08 80%);flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1rem;overflow-y:auto;}
+.end-title{font-family:'Cinzel',serif;font-size:clamp(20px,5vw,32px);font-weight:700;color:var(--gold2);letter-spacing:6px;margin-bottom:.4rem;}
+.end-sub{font-size:11px;color:var(--text2);letter-spacing:2px;margin-bottom:1.5rem;}
+.score-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1.5rem;width:min(370px,90vw);}
+.score-box{background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:10px;}
+.score-box .sl{font-size:9px;color:var(--text3);margin-bottom:3px;}
+.score-box .sv{font-size:20px;color:var(--text);}
+.final-score{font-family:'Cinzel',serif;font-size:clamp(28px,6vw,44px);color:var(--gold2);margin-bottom:.2rem;}
+.final-rank{font-size:11px;color:var(--text2);letter-spacing:3px;margin-bottom:1.5rem;}
+
+#tooltip{position:fixed;z-index:250;background:var(--bg2);border:1px solid var(--border2);border-radius:3px;padding:5px 9px;font-size:11px;pointer-events:none;display:none;max-width:180px;line-height:1.6;}
+#tooltip b{color:var(--gold);font-family:'Cinzel',serif;font-size:10px;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<div id="title">
+  <div class="title-deco"></div>
+  <div class="title-yr">1939</div>
+  <div class="title-sub">WORLD WAR II — GRAND STRATEGY</div>
+  <div class="title-h2">국가 선택</div>
+  <div class="nation-grid" id="nation-grid"></div>
+  <button class="start-btn" id="start-btn" disabled onclick="startGame()">전쟁 개시</button>
+</div>
+
+<div id="game">
+  <div class="topbar">
+    <span class="tb-flag" id="hud-flag"></span>
+    <span class="tb-nation" id="hud-nation"></span>
+    <span class="tb-date" id="hud-date"></span>
+    <div class="tb-sep"></div>
+    <span class="tb-stat">군 <b id="hud-mil"></b></span>
+    <span class="tb-stat">경 <b id="hud-eco"></b></span>
+    <span class="tb-stat">정 <b id="hud-pol"></b></span>
+    <span class="tb-stat">연 <b id="hud-res"></b></span>
+    <span class="tb-stat">영 <b id="hud-ter"></b></span>
+    <span class="tb-acts">행동 <b id="hud-acts">0</b>/3</span>
+    <span class="tb-dom" id="hud-dom">🌍 0%</span>
+    <button class="turn-btn" onclick="nextTurn()">다음 턴 ▶</button>
+    <div class="dom-bar"><div class="dom-fill" id="dom-fill" style="width:0%"></div></div>
+  </div>
+
+  <div class="gamebody">
+    <div class="map-wrap" id="map-wrap">
+      <div class="loading-map" id="map-loading">지도 불러오는 중...</div>
+      <svg id="map-svg"></svg>
+    </div>
+    <div class="right-panel">
+      <div class="panel-hdr">영토 정보</div>
+      <div id="ter-info"><div style="font-size:10px;color:var(--text3);padding:4px">
+        지도에서 국가를 클릭하세요.<br><br>
+        <span style="color:#4a8a2a">◆ 초록 점선</span> = 공략 가능<br>
+        <span style="color:#c04040">◆ 빨간 점선</span> = 적국 인접
+      </div></div>
+      <div class="panel-hdr" style="border-top:1px solid var(--border)">전황 일지</div>
+      <div id="log-list"></div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="stat-panel">
+      <div class="stat-row"><div class="stat-label">군사력</div><div class="stat-bar"><div class="stat-fill" id="bar-mil" style="background:var(--red2)"></div></div><div class="stat-val" id="bv-mil"></div></div>
+      <div class="stat-row"><div class="stat-label">경제력</div><div class="stat-bar"><div class="stat-fill" id="bar-eco" style="background:var(--green2)"></div></div><div class="stat-val" id="bv-eco"></div></div>
+      <div class="stat-row"><div class="stat-label">정치력</div><div class="stat-bar"><div class="stat-fill" id="bar-pol" style="background:var(--blue2)"></div></div><div class="stat-val" id="bv-pol"></div></div>
+      <div class="stat-row"><div class="stat-label">연구력</div><div class="stat-bar"><div class="stat-fill" id="bar-res" style="background:var(--amber2)"></div></div><div class="stat-val" id="bv-res"></div></div>
+      <div class="stat-extra">
+        턴 <span id="turn-label">1</span> | 공장 <span id="factory-label" style="color:var(--amber2)">0</span>개 +<span id="factory-inc" style="color:var(--amber2)">0</span>/턴<br>
+        세계 정복 <span id="dom-pct" style="color:var(--gold)">0%</span> | 승리 <span id="war-wins" style="color:var(--green2)">0</span>회
+      </div>
+    </div>
+    <div class="action-panel"><div class="action-grid" id="action-grid"></div></div>
+  </div>
+</div>
+
+<div id="battle-overlay">
+  <div class="battle-box">
+    <div class="battle-hdr">
+      <div class="battle-title" id="bt-title">전쟁</div>
+      <div class="battle-subtitle" id="bt-sub"></div>
+    </div>
+    <div class="battle-body" id="battle-body"></div>
+  </div>
+</div>
+
+<div id="modal"><div class="modal-box">
+  <div class="modal-title" id="modal-title"></div>
+  <div class="modal-body" id="modal-body"></div>
+  <div class="modal-btns" id="modal-btns"></div>
+</div></div>
+
+<div id="tooltip"></div>
+
+<div id="end-screen">
+  <div class="end-title" id="end-title">전쟁 종결</div>
+  <div class="end-sub" id="end-sub"></div>
+  <div class="score-grid">
+    <div class="score-box"><div class="sl">군사력</div><div class="sv" id="es-mil"></div></div>
+    <div class="score-box"><div class="sl">경제력</div><div class="sv" id="es-eco"></div></div>
+    <div class="score-box"><div class="sl">정치력</div><div class="sv" id="es-pol"></div></div>
+    <div class="score-box"><div class="sl">연구력</div><div class="sv" id="es-res"></div></div>
+  </div>
+  <div class="final-score" id="es-score"></div>
+  <div class="final-rank" id="es-rank"></div>
+  <button class="start-btn" style="margin-top:1rem" onclick="location.reload()">다시 시작</button>
+</div>
+
+<script>
+// ══════════════════════════════════
+// DATA
+// ══════════════════════════════════
+const NATIONS=[
+  {id:'germany',name:'독일 제3제국',flag:'🇩🇪',focus:'전격전 & 유럽 정복',bonus:{mil:30,eco:12,pol:8,res:12},
+   techs:[{id:'blitz',name:'전격전 교리',cost:15,effect:{mil:20},done:true},{id:'tiger',name:'타이거 전차',cost:18,effect:{mil:18}},{id:'uboat',name:'U보트 함대',cost:15,effect:{mil:12,eco:8}},{id:'fw',name:'FW-190 전투기',cost:16,effect:{mil:14}},{id:'v2',name:'V2 로켓',cost:22,effect:{mil:18,res:10}}]},
+  {id:'uk',name:'대영제국',flag:'🇬🇧',focus:'해양 패권 & 외교',bonus:{mil:12,eco:22,pol:26,res:12},
+   techs:[{id:'radar',name:'레이더 시스템',cost:15,effect:{mil:12,res:15},done:true},{id:'spitfire',name:'스핏파이어',cost:18,effect:{mil:16}},{id:'sonar',name:'소나 기술',cost:14,effect:{mil:10,eco:8}},{id:'enigma',name:'에니그마 해독',cost:22,effect:{mil:8,res:22}},{id:'lancaster',name:'랭커스터 폭격기',cost:17,effect:{mil:18}}]},
+  {id:'ussr',name:'소비에트 연방',flag:'🇷🇺',focus:'대규모 전쟁 & 공업화',bonus:{mil:22,eco:14,pol:10,res:8},
+   techs:[{id:'t34',name:'T-34 전차',cost:18,effect:{mil:22}},{id:'katyusha',name:'카츄샤 로켓포',cost:16,effect:{mil:18}},{id:'nuclear',name:'핵 프로그램',cost:28,effect:{res:25,mil:18}},{id:'collective',name:'집단농장 체계',cost:12,effect:{eco:20},done:true},{id:'il2',name:'IL-2 슈투르모빅',cost:17,effect:{mil:16}}]},
+  {id:'usa',name:'미합중국',flag:'🇺🇸',focus:'산업력 & 기술 패권',bonus:{mil:8,eco:35,pol:14,res:24},
+   techs:[{id:'manhattan',name:'맨해튼 프로젝트',cost:32,effect:{mil:38,res:25}},{id:'sherman',name:'셔먼 전차',cost:16,effect:{mil:16}},{id:'carrier',name:'항공모함 함대',cost:20,effect:{mil:20}},{id:'lendlease',name:'렌드리스법',cost:14,effect:{eco:22,pol:15},done:true},{id:'b29',name:'B-29 폭격기',cost:20,effect:{mil:22}}]},
+  {id:'japan',name:'일본 제국',flag:'🇯🇵',focus:'태평양 패권 & 자원',bonus:{mil:22,eco:12,pol:8,res:12},
+   techs:[{id:'zero',name:'제로 전투기',cost:15,effect:{mil:18},done:true},{id:'yamato',name:'야마토 전함',cost:22,effect:{mil:24}},{id:'kamikaze',name:'신풍 특공대',cost:14,effect:{mil:14}},{id:'sub',name:'잠수함 함대',cost:15,effect:{mil:14,eco:8}},{id:'banzai',name:'만세 돌격 교리',cost:12,effect:{mil:16}}]},
+  {id:'france',name:'프랑스 공화국',flag:'🇫🇷',focus:'방어 & 레지스탕스',bonus:{mil:15,eco:16,pol:22,res:10},
+   techs:[{id:'maginot',name:'마지노선 강화',cost:15,effect:{mil:20},done:true},{id:'resistance',name:'레지스탕스 조직',cost:14,effect:{pol:20,mil:10}},{id:'ffl',name:'자유 프랑스군',cost:18,effect:{mil:18,pol:12}},{id:'dewoitine',name:'D.520 전투기',cost:14,effect:{mil:14}},{id:'b1',name:'B1 중전차',cost:16,effect:{mil:16}}]},
+  {id:'italy',name:'이탈리아 왕국',flag:'🇮🇹',focus:'지중해 & 북아프리카',bonus:{mil:14,eco:14,pol:12,res:8},
+   techs:[{id:'regia',name:'레지아 마리나',cost:15,effect:{mil:16},done:true},{id:'rommel',name:'롬멜식 사막전',cost:16,effect:{mil:18}},{id:'folgore',name:'폴고레 공수부대',cost:14,effect:{mil:14}},{id:'sm79',name:'SM.79 폭격기',cost:13,effect:{mil:12}},{id:'pact',name:'동맹 강화 협정',cost:16,effect:{pol:20,eco:12}}]},
+  {id:'china',name:'중화민국',flag:'🇨🇳',focus:'항일 저항 & 생존',bonus:{mil:10,eco:8,pol:10,res:5},
+   techs:[{id:'guerrilla',name:'게릴라 전술',cost:12,effect:{mil:16},done:true},{id:'united',name:'국공합작',cost:14,effect:{pol:18,mil:10}},{id:'usaid',name:'미국 원조 협정',cost:16,effect:{eco:18,mil:12}},{id:'burma',name:'버마 도로 개통',cost:15,effect:{eco:20}},{id:'nationalist',name:'민족주의 운동',cost:12,effect:{pol:22}}]},
+];
+
+const COLORS={germany:'#5a5248',uk:'#1e3a58',ussr:'#581a1a',usa:'#1e4228',japan:'#622814',france:'#344828',italy:'#384818',china:'#581828',neutral:'#142030'};
+const HOVERS={germany:'#7a7268',uk:'#2c5278',ussr:'#783030',usa:'#2c5a38',japan:'#824028',france:'#4a6038',italy:'#506028',china:'#783040',neutral:'#1e3048'};
+const NFLAGS={germany:'🇩🇪',uk:'🇬🇧',ussr:'🇷🇺',usa:'🇺🇸',japan:'🇯🇵',france:'🇫🇷',italy:'🇮🇹',china:'🇨🇳',neutral:'🏳'};
+const NNAMES={germany:'독일 제3제국',uk:'대영제국',ussr:'소비에트 연방',usa:'미합중국',japan:'일본 제국',france:'프랑스 공화국',italy:'이탈리아 왕국',china:'중화민국',neutral:'중립국'};
+
+const OWNER_1939={
+  DEU:'germany',AUT:'germany',CZE:'germany',
+  GBR:'uk',AUS:'uk',CAN:'uk',NZL:'uk',ZAF:'uk',IND:'uk',PAK:'uk',BGD:'uk',MMR:'uk',MYS:'uk',NGA:'uk',GHA:'uk',KEN:'uk',TZA:'uk',UGA:'uk',ZMB:'uk',ZWE:'uk',SDN:'uk',IRQ:'uk',JOR:'uk',ARE:'uk',YEM:'uk',OMN:'uk',KWT:'uk',QAT:'uk',BHR:'uk',
+  RUS:'ussr',BLR:'ussr',UKR:'ussr',KAZ:'ussr',UZB:'ussr',TKM:'ussr',KGZ:'ussr',TJK:'ussr',AZE:'ussr',ARM:'ussr',GEO:'ussr',MDA:'ussr',EST:'ussr',LVA:'ussr',LTU:'ussr',
+  USA:'usa',
+  JPN:'japan',KOR:'japan',PRK:'japan',
+  FRA:'france',DZA:'france',MAR:'france',TUN:'france',SEN:'france',CMR:'france',CIV:'france',MLI:'france',BFA:'france',NER:'france',TCD:'france',CAF:'france',COG:'france',GAB:'france',GIN:'france',BEN:'france',MDG:'france',SYR:'france',LBN:'france',VNM:'france',KHM:'france',LAO:'france',DJI:'france',MRT:'france',
+  ITA:'italy',LBY:'italy',ETH:'italy',SOM:'italy',ERI:'italy',ALB:'italy',
+  CHN:'china',TWN:'china',
+};
+
+const ADJ={
+  DEU:['FRA','BEL','NLD','DNK','POL','CZE','AUT','CHE','LUX'],FRA:['DEU','BEL','LUX','CHE','ITA','ESP'],
+  GBR:['IRL','FRA','BEL','NLD'],POL:['DEU','CZE','UKR','BLR','LTU','RUS'],
+  CZE:['DEU','POL','AUT','HUN','SVK'],AUT:['DEU','CZE','HUN','ITA','CHE'],
+  HUN:['AUT','CZE','UKR','ROU','SRB'],ROU:['HUN','UKR','MDA','BGR'],
+  BGR:['ROU','GRC','TUR','SRB'],GRC:['ALB','BGR','TUR'],ALB:['GRC','SRB','ITA'],
+  ITA:['FRA','CHE','AUT','GRC','LBY','TUN'],ESP:['FRA','PRT','MAR'],
+  SWE:['NOR','FIN','DNK'],NOR:['SWE','FIN','RUS'],FIN:['NOR','SWE','RUS','EST'],
+  EST:['FIN','LVA','RUS'],LVA:['EST','LTU','RUS','BLR'],LTU:['LVA','BLR','POL','RUS'],
+  BLR:['RUS','UKR','POL','LTU','LVA'],UKR:['RUS','BLR','POL','HUN','ROU','MDA'],
+  RUS:['NOR','FIN','EST','LVA','LTU','BLR','UKR','GEO','AZE','KAZ','CHN','MNG','PRK'],
+  GEO:['RUS','ARM','AZE','TUR'],ARM:['GEO','AZE','IRN','TUR'],AZE:['RUS','GEO','ARM','IRN','TUR'],
+  TUR:['BGR','GRC','ARM','AZE','GEO','IRN','IRQ','SYR'],SYR:['TUR','LBN','JOR','IRQ'],
+  LBN:['SYR'],JOR:['SYR','IRQ','SAU'],IRQ:['TUR','SYR','JOR','SAU','KWT','IRN'],
+  IRN:['TUR','ARM','AZE','TKM','AFG','PAK','IRQ'],SAU:['JOR','IRQ','KWT','ARE','OMN','YEM'],
+  KAZ:['RUS','CHN','KGZ','UZB','TKM'],UZB:['KAZ','KGZ','TJK','AFG','TKM'],
+  TKM:['KAZ','UZB','AFG','IRN'],KGZ:['KAZ','CHN','TJK','UZB'],TJK:['KGZ','CHN','AFG','UZB'],
+  AFG:['TKM','UZB','TJK','CHN','PAK','IRN'],PAK:['IRN','AFG','CHN','IND'],
+  IND:['PAK','CHN','NPL','BGD','MMR'],CHN:['RUS','MNG','KAZ','KGZ','TJK','AFG','PAK','IND','NPL','MMR','LAO','VNM','PRK'],
+  MNG:['RUS','CHN'],PRK:['CHN','RUS','KOR'],KOR:['PRK','JPN'],JPN:['KOR','CHN','RUS'],
+  MMR:['CHN','IND','BGD','THA','LAO'],THA:['MMR','LAO','KHM','MYS'],
+  VNM:['CHN','LAO','KHM'],LAO:['CHN','VNM','KHM','THA','MMR'],KHM:['THA','LAO','VNM'],
+  MYS:['THA','IDN'],IDN:['MYS','AUS'],
+  EGY:['LBY','SDN'],LBY:['TUN','DZA','TCD','SDN','EGY','ITA'],TUN:['DZA','LBY','ITA'],
+  DZA:['MAR','TUN','LBY','NER','MLI','MRT'],MAR:['DZA','ESP','MRT'],MRT:['MAR','DZA','MLI','SEN'],
+  MLI:['MRT','DZA','NER','BFA','CIV','GIN','SEN'],NER:['DZA','LBY','TCD','NGA','BEN','BFA','MLI'],
+  TCD:['LBY','SDN','CAF','CMR','NGA','NER'],SDN:['EGY','LBY','TCD','CAF','UGA','KEN','ETH','ERI'],
+  ETH:['ERI','SOM','KEN','SDN'],ERI:['SDN','ETH'],SOM:['ETH','KEN'],KEN:['ETH','SOM','TZA','UGA','SDN'],
+  UGA:['SDN','KEN','TZA'],TZA:['KEN','UGA','ZMB','MOZ'],ZMB:['TZA','MOZ','ZWE','AGO'],
+  ZWE:['ZMB','MOZ','ZAF'],ZAF:['NAM','ZWE','MOZ'],MOZ:['TZA','ZMB','ZWE','ZAF'],
+  CMR:['NGA','TCD','CAF','COG','GAB'],NGA:['NER','TCD','CMR','BEN'],BEN:['NER','NGA','BFA'],
+  GHA:['CIV','BFA'],CIV:['GIN','GHA','BFA','MLI'],SEN:['MRT','MLI','GIN'],GIN:['SEN','MLI','CIV'],
+  COG:['GAB','CMR','CAF'],GAB:['CMR','COG'],CAF:['TCD','SDN','CMR','COG'],
+  AGO:['COG','ZMB','NAM'],NAM:['AGO','ZMB','ZAF'],
+  USA:['CAN','MEX'],MEX:['USA','GTM'],
+  COL:['VEN','BRA','ECU','PER'],VEN:['COL','BRA'],BRA:['VEN','COL','PER','BOL','PRY','ARG','URY'],
+  PER:['ECU','COL','BRA','BOL','CHL'],BOL:['PER','BRA','PRY','ARG','CHL'],
+  ARG:['CHL','BOL','PRY','BRA','URY'],CHL:['PER','BOL','ARG'],AUS:['IDN','NZL'],
+};
+
+const N2I={4:'AFG',8:'ALB',12:'DZA',24:'AGO',32:'ARG',36:'AUS',40:'AUT',50:'BGD',56:'BEL',64:'BTN',68:'BOL',76:'BRA',100:'BGR',104:'MMR',116:'KHM',120:'CMR',124:'CAN',140:'CAF',144:'LKA',152:'CHL',156:'CHN',170:'COL',178:'COG',180:'COD',192:'CUB',203:'CZE',204:'BEN',208:'DNK',218:'ECU',231:'ETH',232:'ERI',233:'EST',246:'FIN',250:'FRA',262:'DJI',266:'GAB',276:'DEU',288:'GHA',300:'GRC',320:'GTM',324:'GIN',332:'HTI',340:'HND',356:'IND',360:'IDN',364:'IRN',368:'IRQ',372:'IRL',376:'ISR',380:'ITA',392:'JPN',400:'JOR',398:'KAZ',404:'KEN',408:'PRK',410:'KOR',417:'KGZ',418:'LAO',422:'LBN',426:'LSO',428:'LVA',430:'LBR',434:'LBY',440:'LTU',450:'MDG',454:'MWI',466:'MLI',484:'MEX',496:'MNG',498:'MDA',504:'MAR',508:'MOZ',516:'NAM',524:'NPL',528:'NLD',554:'NZL',558:'NIC',562:'NER',566:'NGA',578:'NOR',586:'PAK',591:'PAN',600:'PRY',604:'PER',608:'PHL',616:'POL',634:'QAT',642:'ROU',643:'RUS',682:'SAU',686:'SEN',694:'SLE',706:'SOM',710:'ZAF',716:'ZWE',724:'ESP',729:'SDN',748:'SWZ',752:'SWE',756:'CHE',760:'SYR',762:'TJK',764:'THA',768:'TGO',780:'TTO',788:'TUN',792:'TUR',795:'TKM',800:'UGA',804:'UKR',784:'ARE',818:'EGY',826:'GBR',840:'USA',854:'BFA',858:'URY',860:'UZB',862:'VEN',704:'VNM',887:'YEM',894:'ZMB',31:'AZE',51:'ARM',268:'GEO',344:'HKG',348:'HUN',352:'ISL',388:'JAM',438:'LIE',442:'LUX',458:'MYS',470:'MLT',703:'SVK',705:'SVN',188:'CRI'};
+const I2N={DEU:'독일',AUT:'오스트리아',CZE:'체코',POL:'폴란드',BEL:'벨기에',NLD:'네덜란드',FRA:'프랑스',GBR:'영국',IRL:'아일랜드',NOR:'노르웨이',SWE:'스웨덴',DNK:'덴마크',FIN:'핀란드',EST:'에스토니아',LVA:'라트비아',LTU:'리투아니아',RUS:'소련',BLR:'벨라루스',UKR:'우크라이나',MDA:'몰도바',KAZ:'카자흐스탄',UZB:'우즈베키스탄',TKM:'투르크메니스탄',KGZ:'키르기스스탄',TJK:'타지키스탄',AZE:'아제르바이잔',ARM:'아르메니아',GEO:'조지아',HUN:'헝가리',ROU:'루마니아',BGR:'불가리아',GRC:'그리스',ALB:'알바니아',TUR:'터키',SYR:'시리아',LBN:'레바논',IRQ:'이라크',IRN:'이란',JOR:'요르단',SAU:'사우디아라비아',YEM:'예멘',OMN:'오만',ARE:'UAE',QAT:'카타르',BHR:'바레인',KWT:'쿠웨이트',ITA:'이탈리아',CHE:'스위스',ESP:'스페인',PRT:'포르투갈',LUX:'룩셈부르크',USA:'미국',CAN:'캐나다',MEX:'멕시코',CUB:'쿠바',BRA:'브라질',ARG:'아르헨티나',COL:'콜롬비아',PER:'페루',VEN:'베네수엘라',CHL:'칠레',BOL:'볼리비아',URY:'우루과이',PRY:'파라과이',ECU:'에콰도르',JPN:'일본',KOR:'조선',PRK:'북조선',CHN:'중국',TWN:'대만',MNG:'몽골',IND:'인도',PAK:'파키스탄',BGD:'방글라데시',MMR:'버마',LKA:'실론',VNM:'베트남',KHM:'캄보디아',LAO:'라오스',MYS:'말라야',IDN:'인도네시아',PHL:'필리핀',THA:'태국',AFG:'아프가니스탄',NPL:'네팔',AUS:'호주',NZL:'뉴질랜드',DZA:'알제리',MAR:'모로코',TUN:'튀니지',LBY:'리비아',EGY:'이집트',SDN:'수단',ETH:'에티오피아',SOM:'소말리아',ERI:'에리트레아',DJI:'지부티',KEN:'케냐',TZA:'탄자니아',UGA:'우간다',MDG:'마다가스카르',ZAF:'남아프리카',ZWE:'짐바브웨',ZMB:'잠비아',MOZ:'모잠비크',NGA:'나이지리아',GHA:'가나',SEN:'세네갈',CIV:'코트디부아르',MLI:'말리',BFA:'부르키나파소',NER:'니제르',TCD:'차드',CAF:'중앙아프리카',CMR:'카메룬',COG:'콩고',GAB:'가봉',GIN:'기니',BEN:'베냉',MRT:'모리타니',AGO:'앙골라',NAM:'나미비아',SVK:'슬로바키아',GTM:'과테말라'};
+
+// ══════════════════════════════════
+// STATE
+// ══════════════════════════════════
+let G={},own={},geoData=null,selNid=null;
+let msvg,proj,pg,mG,mZoom;
+
+function initState(nid){
+  const n=NATIONS.find(x=>x.id===nid);
+  G={
+    nid,nation:n,turn:1,year:1939,month:9,
+    mil:Math.min(100,30+n.bonus.mil),eco:Math.min(100,30+n.bonus.eco),
+    pol:Math.min(100,30+n.bonus.pol),res:Math.min(100,20+n.bonus.res),
+    techs:n.techs.map(t=>({...t})),
+    logs:[],selISO:null,actsUsed:0,actsUsedSet:new Set(),
+    factQ:[],permEco:0,factCount:0,warCount:0,victories:0,
+    _25:false,_50:false,_75:false,
+  };
+  own={};
+  Object.entries(OWNER_1939).forEach(([k,v])=>own[k]=v);
+}
+
+const getISO=id=>N2I[parseInt(id)]||null;
+const ownerOf=iso=>iso?(own[iso]||'neutral'):'neutral';
+const playerTer=()=>Object.values(own).filter(v=>v===G.nid).length;
+const totalTer=()=>Object.keys(own).length;
+const domPct=()=>Math.round(playerTer()/totalTer()*100);
+
+function getAdj(){
+  const mine=new Set(Object.entries(own).filter(([,v])=>v===G.nid).map(([k])=>k));
+  const adj=new Set();
+  mine.forEach(iso=>{(ADJ[iso]||[]).forEach(n=>{if(!mine.has(n))adj.add(n);});});
+  return adj;
+}
+
+// ══════════════════════════════════
+// MAP
+// ══════════════════════════════════
+async function initMap(){
+  const wrap=document.getElementById('map-wrap');
+  const w=wrap.clientWidth||window.innerWidth;
+  const h=wrap.clientHeight||Math.floor(window.innerHeight*.5);
+  msvg=d3.select('#map-svg').attr('width',w).attr('height',h);
+  proj=d3.geoNaturalEarth1().scale(w/6.3).translate([w/2,h/2]);
+  pg=d3.geoPath().projection(proj);
+  msvg.append('rect').attr('width',w).attr('height',h).attr('fill','#060e18');
+  const grat=d3.geoGraticule().step([20,20]);
+  msvg.append('path').datum(grat()).attr('d',pg).attr('fill','none').attr('stroke','#0a1820').attr('stroke-width',.35);
+  mG=msvg.append('g');
+  mZoom=d3.zoom().scaleExtent([.8,14]).on('zoom',e=>mG.attr('transform',e.transform));
+  msvg.call(mZoom);
+  try{
+    const topo=await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+    geoData=topojson.feature(topo,topo.objects.countries);
+    document.getElementById('map-loading').style.display='none';
+    drawMap();drawLegend();
+  }catch(e){document.getElementById('map-loading').textContent='지도 로드 실패 — 새로고침';}
+}
+
+function drawMap(){
+  if(!geoData)return;
+  const adj=getAdj();
+  mG.selectAll('.country').remove();
+  mG.selectAll('.country')
+    .data(geoData.features).enter().append('path')
+    .attr('class',d=>{
+      const iso=getISO(d.id),o=ownerOf(iso);
+      let c='country';
+      if(o===G.nid)c+=' player-own';
+      if(iso===G.selISO)c+=' selected';
+      else if(iso&&adj.has(iso)){c+=o==='neutral'?' adj-neutral':o!==G.nid?' adj-enemy':'';}
+      return c;
+    })
+    .attr('d',pg)
+    .attr('fill',d=>COLORS[ownerOf(getISO(d.id))]||COLORS.neutral)
+    .on('mouseover',function(ev,d){
+      const iso=getISO(d.id),o=ownerOf(iso);
+      if(iso!==G.selISO)d3.select(this).attr('fill',HOVERS[o]||HOVERS.neutral);
+      tipShow(ev,iso,o,adj.has(iso));
+    })
+    .on('mousemove',tipMove)
+    .on('mouseout',function(ev,d){
+      const iso=getISO(d.id),o=ownerOf(iso);
+      if(iso!==G.selISO)d3.select(this).attr('fill',COLORS[o]||COLORS.neutral);
+      tipHide();
+    })
+    .on('click touchend',function(ev,d){
+      ev.preventDefault();tipHide();
+      const iso=getISO(d.id);
+      if(!iso)return;
+      G.selISO=iso;drawMap();renderTerInfo(iso);
+    });
+}
+
+function drawLegend(){
+  msvg.select('.ml').remove();
+  const lg=msvg.append('g').attr('class','ml').attr('transform','translate(8,8)');
+  const E=[{id:'germany',n:'독일'},{id:'uk',n:'영국'},{id:'ussr',n:'소련'},{id:'usa',n:'미국'},{id:'japan',n:'일본'},{id:'france',n:'프랑스'},{id:'italy',n:'이탈리아'},{id:'china',n:'중국'},{id:'neutral',n:'중립'}];
+  lg.append('rect').attr('width',94).attr('height',12+E.length*14).attr('rx',3).attr('fill','rgba(6,14,24,.92)').attr('stroke','#141e28').attr('stroke-width',.5);
+  lg.append('text').attr('x',47).attr('y',11).attr('text-anchor','middle').attr('font-size',7).attr('fill','#3a4858').attr('font-family','sans-serif').text('세력 판도');
+  E.forEach((e,i)=>{
+    const y=18+i*14;
+    lg.append('rect').attr('x',8).attr('y',y-4).attr('width',8).attr('height',7).attr('rx',1).attr('fill',COLORS[e.id]);
+    lg.append('text').attr('x',21).attr('y',y+2).attr('font-size',8).attr('fill','#a8a090').attr('font-family','sans-serif').text(e.n);
+  });
+}
+
+function tipShow(ev,iso,o,isAdj){
+  const name=I2N[iso]||iso||'?';
+  const flag=NFLAGS[o]||'';
+  const on=NNAMES[o]||o;
+  const adj2=isAdj&&o!==G.nid?`<br><span style="color:#4a8a2a">◆ 클릭 → 공략 가능</span>`:'';
+  document.getElementById('tooltip').innerHTML=`<b>${name}</b><br>${flag} ${on}${adj2}`;
+  document.getElementById('tooltip').style.display='block';
+  tipMove(ev);
+}
+function tipMove(ev){
+  const t=document.getElementById('tooltip');
+  const x=ev.clientX||(ev.touches?.[0]?.clientX)||0;
+  const y=ev.clientY||(ev.touches?.[0]?.clientY)||0;
+  t.style.left=(x+14)+'px';t.style.top=(y-8)+'px';
+}
+function tipHide(){document.getElementById('tooltip').style.display='none';}
+
+// ══════════════════════════════════
+// HUD
+// ══════════════════════════════════
+function renderAll(){renderHUD();renderBars();renderActs();drawMap();}
+
+function renderHUD(){
+  const mo=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('hud-flag').textContent=G.nation.flag;
+  document.getElementById('hud-nation').textContent=G.nation.name;
+  document.getElementById('hud-date').textContent=`${G.year}년 ${mo[G.month-1]}`;
+  ['mil','eco','pol','res'].forEach(k=>document.getElementById('hud-'+k).textContent=G[k]);
+  document.getElementById('hud-ter').textContent=playerTer();
+  document.getElementById('hud-acts').textContent=G.actsUsed;
+  document.getElementById('turn-label').textContent=G.turn;
+  document.getElementById('factory-label').textContent=G.factCount;
+  document.getElementById('factory-inc').textContent=G.permEco;
+  document.getElementById('war-wins').textContent=G.victories;
+  const dom=domPct();
+  document.getElementById('dom-pct').textContent=dom+'%';
+  document.getElementById('dom-fill').style.width=dom+'%';
+  document.getElementById('hud-dom').textContent=`🌍 ${dom}%`;
+}
+function renderBars(){
+  [['mil','var(--red2)'],['eco','var(--green2)'],['pol','var(--blue2)'],['res','var(--amber2)']].forEach(([k,c])=>{
+    document.getElementById('bar-'+k).style.cssText=`width:${G[k]}%;background:${c}`;
+    document.getElementById('bv-'+k).textContent=G[k];
+  });
+}
+
+// ══════════════════════════════════
+// TERRITORY INFO PANEL
+// ══════════════════════════════════
+function renderTerInfo(iso){
+  const ip=document.getElementById('ter-info');
+  if(!iso){
+    ip.innerHTML='<div style="font-size:10px;color:var(--text3);padding:4px">지도에서 국가를 클릭하세요.<br><br><span style="color:#4a8a2a">◆ 초록 점선</span> = 공략 가능<br><span style="color:#c04040">◆ 빨간 점선</span> = 적국 인접</div>';
+    return;
+  }
+  const o=ownerOf(iso);
+  const name=I2N[iso]||iso;
+  const flag=NFLAGS[o]||'';
+  const oName=NNAMES[o]||o;
+  const adj=getAdj();
+  const isAdj=adj.has(iso);
+  const isOwn=o===G.nid;
+
+  const defPow=calcDefPower(iso,o);
+  const atkPow=G.mil;
+  const winPct=Math.round(calcWinRate(atkPow,defPow)*100);
+  const blitzPct=Math.min(95,Math.round(calcWinRate(atkPow+15,defPow)*100));
+
+  const canAtk=!isOwn&&isAdj&&G.actsUsed<3&&!G.actsUsedSet.has('war')&&G.mil>=15&&G.eco>=8;
+  const canBlitz=!isOwn&&isAdj&&G.actsUsed<3&&!G.actsUsedSet.has('blitz')&&G.mil>=35&&G.eco>=14;
+  const actsDone=G.actsUsed>=3;
+  const warDone=G.actsUsedSet.has('war');
+  const blitzDone=G.actsUsedSet.has('blitz');
+
+  let atkReason='';
+  if(!isAdj)atkReason='인접하지 않음';
+  else if(actsDone)atkReason='행동력 소진';
+  else if(warDone)atkReason='이미 전쟁 선포함';
+  else if(G.mil<15)atkReason='군사력 15 필요';
+  else if(G.eco<8)atkReason='경제력 8 필요';
+
+  let blitzReason='';
+  if(!isAdj)blitzReason='인접하지 않음';
+  else if(actsDone)blitzReason='행동력 소진';
+  else if(blitzDone)blitzReason='이미 사용함';
+  else if(G.mil<35)blitzReason='군사력 35 필요';
+  else if(G.eco<14)blitzReason='경제력 14 필요';
+
+  ip.innerHTML=`
+    <div class="ter-name">${flag} ${name}</div>
+    <div class="ter-row">지배<span>${oName}</span></div>
+    <div class="ter-row">상태<span style="color:${isOwn?'var(--gold2)':isAdj?'#c04040':'var(--text3)'}">${isOwn?'🟡 아군':isAdj?'⚠ 인접':'○ 원거리'}</span></div>
+    ${!isOwn?`
+    <div class="ter-row">방어력<span style="color:var(--red2)">${defPow}</span></div>
+    <div class="ter-row">내 군사력<span style="color:var(--gold)">${atkPow}</span></div>
+    <button class="ter-atk-btn war-btn" ${!canAtk?'disabled':''} onclick="startBattle('${iso}','normal')">
+      ⚔ 전쟁 선포 — 군-12 경-8<br>
+      <span style="font-size:9px">${canAtk?`승리 확률 ${winPct}%`:atkReason}</span>
+    </button>
+    <button class="ter-atk-btn blitz-btn" ${!canBlitz?'disabled':''} onclick="startBattle('${iso}','blitz')">
+      ⚡ 전격전 — 군-22 경-14<br>
+      <span style="font-size:9px">${canBlitz?`승리 확률 ${blitzPct}%`:blitzReason}</span>
+    </button>`:'<div style="font-size:10px;color:var(--text3);margin-top:6px">아군 영토</div>'}`;
+}
+
+function calcDefPower(iso,o){
+  const BASE={germany:72,uk:62,ussr:78,usa:68,japan:66,france:56,italy:50,china:44,neutral:18};
+  const base=BASE[o]||18;
+  const terCount=Object.values(own).filter(v=>v===o).length;
+  return Math.round(base+terCount*0.8+Math.random()*8);
+}
+function calcWinRate(atk,def){
+  const ratio=atk/(def||1);
+  return Math.min(0.95,Math.max(0.07,1/(1+Math.exp(-2.8*(ratio-1)))));
+}
+
+// ══════════════════════════════════
+// BATTLE SYSTEM
+// ══════════════════════════════════
+function startBattle(iso,mode){
+  const o=ownerOf(iso);
+  if(o===G.nid)return;
+  const adj=getAdj();
+  if(!adj.has(iso))return;
+  const isBlitz=mode==='blitz';
+  const milCost=isBlitz?22:12;
+  const ecoCost=isBlitz?14:8;
+  if(G.mil<milCost||G.eco<ecoCost)return;
+  if(G.actsUsed>=3)return;
+  if(G.actsUsedSet.has(isBlitz?'blitz':'war'))return;
+
+  const name=I2N[iso]||iso;
+  const oName=NNAMES[o]||o;
+  const defPow=calcDefPower(iso,o);
+  const atkBase=G.mil+(isBlitz?15:0);
+
+  // Apply costs immediately
+  G.mil=Math.max(0,G.mil-milCost);
+  G.eco=Math.max(0,G.eco-ecoCost);
+  G.warCount++;
+
+  const result=simulateBattle(atkBase,defPow,isBlitz,name,oName);
+
+  if(result.won){
+    own[iso]=G.nid;G.victories++;
+    G.mil=Math.max(0,G.mil-result.atkLoss);
+    addLog(`🏆 ${name} 점령! (${result.turns}라운드, 피해 군${result.atkLoss})`,'won');
+    checkDom();
+  } else {
+    G.mil=Math.max(0,G.mil-result.atkLoss);
+    addLog(`💀 ${name} 공략 실패. 피해 군${result.atkLoss}`,'war');
+  }
+
+  G.actsUsed++;
+  G.actsUsedSet.add(isBlitz?'blitz':'war');
+
+  showBattleUI(iso,name,oName,o,isBlitz,atkBase,defPow,result);
+  renderAll();
+  renderTerInfo(iso);
+}
+
+function simulateBattle(atkPow,defPow,isBlitz,atkName,defName){
+  const lines=[];
+  let atk=atkPow,def=defPow;
+  let atkTot=0,defTot=0;
+  const maxR=isBlitz?4:7;
+
+  const atkTactics=['전차 돌격','포병 집중 사격','항공 폭격','보병 돌격','측면 우회 기동','화력 집중','공수부대 투입'];
+  const defTactics=['방어선 구축','반격 실시','저격수 교란','지뢰 매설','예비대 투입','진지 사수','포병 방어'];
+
+  let r;
+  for(r=1;r<=maxR;r++){
+    const ar=Math.floor(atk*(0.28+Math.random()*0.44));
+    const dr=Math.floor(def*(0.25+Math.random()*0.42));
+    atkTot+=ar;defTot+=dr;
+    const at=atkTactics[Math.floor(Math.random()*atkTactics.length)];
+    const dt=defTactics[Math.floor(Math.random()*defTactics.length)];
+    if(ar>dr){
+      const dmg=Math.floor((ar-dr)*0.55+1);
+      def=Math.max(0,def-dmg);
+      lines.push({t:`R${r}`,msg:`[${at}] → 적 피해 ${dmg}. (${ar}↑ vs ${dr})`,c:'g'});
+    } else if(dr>ar){
+      const dmg=Math.floor((dr-ar)*0.48+1);
+      atk=Math.max(0,atk-dmg);
+      lines.push({t:`R${r}`,msg:`적 [${dt}] → 아군 피해 ${dmg}. (${ar} vs ${dr}↑)`,c:'b'});
+    } else {
+      lines.push({t:`R${r}`,msg:`교착 상태. (${ar} vs ${dr})`,c:'n'});
+    }
+    if(def<=0||atk<=0)break;
+  }
+
+  const won=atk>def||(r>maxR&&atkTot>defTot);
+  const atkLoss=Math.max(2,Math.floor((atkPow-atk)*0.45+2+Math.random()*5));
+  return {won,turns:r,lines,atkTot,defTot,atkLoss,atkFinal:atk,defFinal:def};
+}
+
+function showBattleUI(iso,name,oName,o,isBlitz,atkPow,defPow,res){
+  document.getElementById('bt-title').textContent=`${isBlitz?'⚡ 전격전':'⚔ 전쟁'} — ${name}`;
+  document.getElementById('bt-sub').textContent=`${G.nation.name} vs ${oName}`;
+
+  const total=atkPow+defPow;
+  const ap=Math.round(atkPow/total*100);
+  const dp=100-ap;
+  const winR=Math.round(calcWinRate(atkPow,defPow)*100);
+
+  document.getElementById('battle-body').innerHTML=`
+    <div class="battle-vs">
+      <div class="battle-side atk">
+        <div class="bs-flag">${G.nation.flag}</div>
+        <div class="bs-name">${G.nation.name}</div>
+        <div class="bs-pow a">${atkPow}</div>
+        <div class="bs-sub">${isBlitz?'전격전 +15 보정':'표준 공격'}<br>예상 승률 ${winR}%</div>
+      </div>
+      <div class="bvs">VS</div>
+      <div class="battle-side def">
+        <div class="bs-flag">${NFLAGS[o]||'🏳'}</div>
+        <div class="bs-name">${oName}</div>
+        <div class="bs-pow d">${defPow}</div>
+        <div class="bs-sub">방어력<br>${name}</div>
+      </div>
+    </div>
+
+    <div class="bbar-wrap">
+      <div class="bbar-lbl"><span>아군 ${atkPow}</span><span>적 ${defPow}</span></div>
+      <div class="bbar-track">
+        <div class="bbar-a" style="width:${ap}%"></div>
+        <div class="bbar-d" style="width:${dp}%"></div>
+      </div>
+    </div>
+
+    <div class="phase-title">전투 경과 — ${res.turns}라운드</div>
+    <div class="battle-log">
+      ${res.lines.map(l=>`<div class="bl ${l.c}"><span style="color:var(--text3);font-size:9px">[${l.t}]</span> ${l.msg}</div>`).join('')}
+      <div class="bl n">───────────────────</div>
+      <div class="bl n">총 아군 화력 ${res.atkTot} | 총 적 화력 ${res.defTot}</div>
+      <div class="bl n">아군 잔여 전투력 ${res.atkFinal} | 적 잔여 ${res.defFinal}</div>
+    </div>
+
+    <div class="battle-result ${res.won?'v':'f'}">
+      <div class="br-ttl ${res.won?'v':'f'}">${res.won?'🏆 점령 성공!':'💀 공략 실패'}</div>
+      <div class="br-det">
+        ${res.won
+          ?`<b style="color:var(--green2)">${name}</b>을(를) 점령했습니다!<br>아군 피해: 군사력 -${res.atkLoss}<br>현재 영토: ${playerTer()}국 | 세계 ${domPct()}%`
+          :`방어선을 돌파하지 못했습니다.<br>아군 피해: 군사력 -${res.atkLoss}<br>군사력을 더 키운 후 재시도하세요.`
+        }
+      </div>
+    </div>
+    <button class="battle-close" onclick="closeBattle()">확인</button>
+  `;
+  document.getElementById('battle-overlay').classList.add('show');
+}
+function closeBattle(){document.getElementById('battle-overlay').classList.remove('show');}
+
+function checkDom(){
+  const d=domPct();
+  if(d>=25&&!G._25){G._25=true;addLog('🌍 세계의 1/4 장악!','event');}
+  if(d>=50&&!G._50){G._50=true;addLog('🌍 세계의 절반 장악!','event');}
+  if(d>=75&&!G._75){G._75=true;addLog('🌍 세계의 3/4 장악!','event');}
+  if(d>=100)endGame(true);
+}
+
+// ══════════════════════════════════
+// ACTIONS
+// ══════════════════════════════════
+const ACTS=[
+  {id:'recruit',icon:'⚔',name:'병력 모집',cost:'경 -14',needs:{eco:14},desc:'즉시 군사력 +18.',
+   exec(){applyEff({mil:18,eco:-14});addLog('병력 모집. 군사력 +18','eco');}},
+  {id:'factory',icon:'🏭',name:'공장 건설',cost:'경 -18',needs:{eco:18},desc:'3턴 후 완공. 경제 +8/턴 영구.',
+   exec(){G.eco=Math.max(0,G.eco-18);G.factCount++;const rt=G.turn+3;G.factQ.push({readyTurn:rt,inc:8});addLog(`공장 건설 → T${rt} 완공`,'eco');}},
+  {id:'research',icon:'🔬',name:'연구 진행',cost:'경 -10',needs:{eco:10},desc:'연구력 +20.',
+   exec(){applyEff({res:20,eco:-10});addLog('연구 진행. 연구력 +20','tech');}},
+  {id:'diplo',icon:'🤝',name:'외교 강화',cost:'정 -8',needs:{pol:8},desc:'정치력 +15, 경제 +6.',
+   exec(){G.pol=Math.max(0,G.pol-8);applyEff({pol:15,eco:6});addLog('외교 강화.','diplo');}},
+  {id:'propaganda',icon:'📢',name:'선전 활동',cost:'경 -6',needs:{eco:6},desc:'정치력 +12, 군사력 +5.',
+   exec(){applyEff({pol:12,mil:5,eco:-6});addLog('선전 활동. 사기 상승.','');}},
+  {id:'tech',icon:'💡',name:'기술 개발',cost:'연구 소모',needs:{res:12},desc:'고유 기술 연구.',
+   exec(){showTechModal();}},
+  {id:'defense',icon:'🛡',name:'방어 강화',cost:'군-8 경-8',needs:{mil:8,eco:8},desc:'군사력 +10, 정치력 +8.',
+   exec(){applyEff({mil:10,pol:8,eco:-8});G.mil=Math.max(0,G.mil-8);addLog('방어 강화.','eco');}},
+];
+
+function canAct(a){
+  if(G.actsUsed>=3||G.actsUsedSet.has(a.id))return false;
+  return Object.entries(a.needs||{}).every(([k,v])=>G[k]>=v);
+}
+function renderActs(){
+  const grid=document.getElementById('action-grid');grid.innerHTML='';
+  ACTS.forEach(a=>{
+    const can=canAct(a),used=G.actsUsedSet.has(a.id);
+    const btn=document.createElement('button');
+    btn.className='act-btn'+(used?' used':'');btn.disabled=!can;
+    btn.innerHTML=`<div class="act-icon">${a.icon}</div><span class="act-name">${a.name}</span><span class="act-cost">${a.cost}</span><div class="act-desc">${a.desc}</div>${used?'<div class="act-used-lbl">완료</div>':''}`;
+    btn.onclick=()=>{
+      if(!canAct(a))return;
+      if(a.id==='tech'){a.exec();return;}
+      a.exec();G.actsUsed++;G.actsUsedSet.add(a.id);renderAll();renderTerInfo(G.selISO);
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function showTechModal(){
+  const av=G.techs.filter(t=>!t.done);
+  if(!av.length){showModal('기술 완료','모든 기술이 개발됐습니다.',[{label:'확인',cls:'mbtn-gray',fn:()=>{}}]);return;}
+  const body=`연구력: <b style="color:var(--amber2)">${G.res}</b><br><br>`
+    +av.map(t=>`• <b style="color:var(--gold)">${t.name}</b> (${t.cost}) — ${Object.entries(t.effect).map(([k,v])=>`${{mil:'군사',eco:'경제',pol:'정치',res:'연구'}[k]||k} +${v}`).join(', ')}`).join('<br>');
+  const btns=av.map(t=>({label:`${t.name} (${t.cost})`,cls:'mbtn-gold',
+    fn(){
+      if(G.res<t.cost){showModal('연구력 부족',`필요 ${t.cost}, 보유 ${G.res}`,[{label:'확인',cls:'mbtn-gray',fn:()=>{}}]);return;}
+      G.res-=t.cost;t.done=true;applyEff(t.effect);
+      G.actsUsed++;G.actsUsedSet.add('tech');
+      addLog(`${t.name} 개발 완료!`,'tech');renderAll();
+    }
+  }));
+  btns.push({label:'취소',cls:'mbtn-gray',fn:()=>{}});
+  showModal('기술 개발',body,btns);
+}
+
+// ══════════════════════════════════
+// TURN
+// ══════════════════════════════════
+function nextTurn(){
+  const still=[];
+  G.factQ.forEach(f=>{
+    if(G.turn>=f.readyTurn){G.permEco+=f.inc;addLog(`공장 완공! +${f.inc}경/턴`,'eco');}
+    else still.push(f);
+  });
+  G.factQ=still;
+
+  const ter=playerTer();
+  G.eco=Math.min(100,G.eco+2+Math.floor(ter*0.6)+G.permEco);
+  G.mil=Math.min(100,G.mil+1+Math.floor(ter*0.2));
+  G.pol=Math.min(100,G.pol+1);G.res=Math.min(100,G.res+1);
+
+  if(G.nid==='usa')G.eco=Math.min(100,G.eco+3);
+  if(G.nid==='ussr')G.mil=Math.min(100,G.mil+2);
+  if(G.nid==='uk')G.pol=Math.min(100,G.pol+2);
+  if(G.nid==='germany'&&ter>4)G.mil=Math.min(100,G.mil+2);
+
+  aiExpand();
+  G.turn++;G.month+=3;if(G.month>12){G.month-=12;G.year++;}
+  G.actsUsed=0;G.actsUsedSet=new Set();
+  addLog(`${G.year}년 ${G.month}월 — 영토 ${ter}국, 공장 +${G.permEco}/턴`,'');
+  renderAll();renderTerInfo(G.selISO);
+}
+
+function aiExpand(){
+  ['germany','uk','ussr','usa','japan','france','italy','china'].filter(n=>n!==G.nid).forEach(nid=>{
+    const nt=Object.entries(own).filter(([,v])=>v===nid).length;
+    for(let i=0;i<1+Math.floor(nt/10);i++){
+      if(Math.random()<0.13){
+        const pool=Object.entries(own).filter(([k,v])=>v==='neutral'&&I2N[k]).map(([k])=>k);
+        if(pool.length)own[pool[Math.floor(Math.random()*pool.length)]]=nid;
+      }
+    }
+    if(Math.random()<0.032&&nt>5){
+      const my=Object.entries(own).filter(([,v])=>v===G.nid).map(([k])=>k);
+      if(my.length&&Math.random()<0.25){
+        const t=my[Math.floor(Math.random()*my.length)];
+        own[t]=nid;
+        const nn={germany:'독일',uk:'영국',ussr:'소련',usa:'미국',japan:'일본',france:'프랑스',italy:'이탈리아',china:'중국'}[nid]||nid;
+        addLog(`⚠ ${I2N[t]||t}이 ${nn}에 빼앗겼다!`,'ai');
+        G.mil=Math.max(0,G.mil-3);
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════
+// MODAL / LOG / UTIL
+// ══════════════════════════════════
+function showModal(title,body,btns){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=body;
+  const bb=document.getElementById('modal-btns');bb.innerHTML='';
+  btns.forEach(b=>{
+    const btn=document.createElement('button');
+    btn.className=`mbtn ${b.cls}`;btn.textContent=b.label;
+    btn.onclick=()=>{closeModal();b.fn&&b.fn();};
+    bb.appendChild(btn);
+  });
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+
+function applyEff(e){
+  Object.entries(e).forEach(([k,v])=>{
+    if(G[k]!==undefined)G[k]=Math.min(100,Math.max(0,G[k]+v));
+  });
+}
+function addLog(text,type=''){
+  G.logs.unshift({text,type,turn:G.turn,year:G.year});
+  if(G.logs.length>80)G.logs.pop();
+  document.getElementById('log-list').innerHTML=G.logs.map(l=>
+    `<div class="log-item ${l.type}"><span style="color:var(--text3);font-size:8px">${l.year}·T${l.turn}</span><br>${l.text}</div>`
+  ).join('');
+}
+
+// ══════════════════════════════════
+// END
+// ══════════════════════════════════
+function endGame(dom=false){
+  const ter=playerTer(),d=domPct();
+  const score=Math.round((G.mil+G.eco+G.pol+G.res)/4+ter*5+G.factCount*8+G.victories*3);
+  document.getElementById('end-title').textContent=dom?'🌍 세계 정복 달성!':'전쟁 종결';
+  document.getElementById('end-sub').textContent=`${G.year}년 — ${G.nation.name} | ${G.turn-1}턴 | 전쟁 ${G.warCount}회 | 승리 ${G.victories}회`;
+  ['mil','eco','pol','res'].forEach(k=>document.getElementById('es-'+k).textContent=G[k]);
+  document.getElementById('es-score').textContent=score+'점';
+  const ranks=[[200,'🌟 역사의 지배자'],[150,'⚔ 위대한 정복자'],[100,'🏆 강대국'],[70,'🎖 명예로운 종전'],[40,'🛡 생존'],[0,'💀 패배']];
+  document.getElementById('es-rank').textContent=ranks.find(r=>score>=r[0])[1]+` | 세계 ${d}%`;
+  document.getElementById('end-screen').style.display='flex';
+}
+
+// ══════════════════════════════════
+// TITLE
+// ══════════════════════════════════
+function buildTitle(){
+  document.getElementById('nation-grid').innerHTML=NATIONS.map(n=>`
+    <div class="ncard" onclick="selectN(this,'${n.id}')">
+      <div class="ncard-flag">${n.flag}</div>
+      <div class="ncard-name">${n.name}</div>
+      <div class="ncard-focus">${n.focus}</div>
+      <div class="ncard-stats">
+        <span class="nstat">군 +${n.bonus.mil}</span><span class="nstat">경 +${n.bonus.eco}</span>
+        <span class="nstat">정 +${n.bonus.pol}</span><span class="nstat">연 +${n.bonus.res}</span>
+      </div>
+    </div>`).join('');
+}
+function selectN(el,nid){
+  document.querySelector('.ncard.sel')?.classList.remove('sel');
+  el.classList.add('sel');selNid=nid;
+  document.getElementById('start-btn').disabled=false;
+}
+async function startGame(){
+  if(!selNid)return;
+  initState(selNid);
+  document.getElementById('title').style.display='none';
+  document.body.classList.add('game-active');
+  document.getElementById('game').style.display='flex';
+  renderHUD();renderBars();renderActs();renderTerInfo(null);
+  await initMap();
+  addLog(`${G.year}년 — ${G.nation.name} 시대 개막. 세계 정복을 향해!`,'event');
+}
+
+window.addEventListener('resize',()=>{
+  if(!msvg)return;
+  const w=document.getElementById('map-wrap').clientWidth;
+  const h=document.getElementById('map-wrap').clientHeight;
+  msvg.attr('width',w).attr('height',h);
+  proj.scale(w/6.3).translate([w/2,h/2]);
+  pg=d3.geoPath().projection(proj);
+  msvg.select('rect').attr('width',w).attr('height',h);
+  drawMap();drawLegend();
+});
+
+buildTitle();
+</script>
+</body>
+</html>
