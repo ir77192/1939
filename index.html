@@ -29,8 +29,8 @@ body.game-active{overflow:hidden;}
 @media(max-width:760px){.nation-grid{grid-template-columns:repeat(2,160px);}}
 .ncard{border:1px solid var(--border);border-radius:3px;padding:11px;cursor:pointer;background:var(--bg2);transition:all .18s;position:relative;overflow:hidden;}
 .ncard:hover{border-color:var(--border3);}
-.ncard.sel{border-color:var(--gold);background:rgba(200,168,75,.06);}
-.ncard.sel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,var(--gold),transparent);}
+.ncard.sel{border-color:var(--gold);background:rgba(200,168,75,.06);box-shadow:0 0 0 1px var(--gold) inset,0 0 12px rgba(200,168,75,.12);}
+.ncard.sel::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,var(--gold),transparent);z-index:1;}
 .ncard-flag{font-size:22px;margin-bottom:5px;}
 .ncard-name{font-family:'Cinzel',serif;font-size:10px;font-weight:600;color:var(--gold);letter-spacing:1px;margin-bottom:3px;}
 .ncard-focus{font-size:11px;color:var(--text2);margin-bottom:6px;font-style:italic;line-height:1.3;}
@@ -67,6 +67,10 @@ body.game-active{overflow:hidden;}
 .country.selected{stroke:var(--gold2);stroke-width:1.6;}
 .country.adj-neutral{stroke:#4a8a2a;stroke-width:.8;stroke-dasharray:3,2;}
 .country.adj-enemy{stroke:#c04040;stroke-width:.8;stroke-dasharray:3,2;}
+.country.naval-target{stroke:#2898c8;stroke-width:1;stroke-dasharray:4,2;}
+.ter-atk-btn.naval-btn{border:1px solid #2898c8;color:#2898c8;margin-top:4px;}
+.ter-atk-btn.naval-btn:hover:not(:disabled){background:rgba(40,152,200,.1);}
+.mob-atk-btn.naval-btn{border:1px solid #2898c8;color:#2898c8;background:transparent;}
 
 /* 오른쪽 패널 — 모바일에서도 표시 (슬라이드업 방식) */
 .right-panel{width:210px;border-left:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
@@ -248,6 +252,7 @@ body.game-active{overflow:hidden;}
     <span class="tb-stat">정 <b id="hud-pol"></b></span>
     <span class="tb-stat">연 <b id="hud-res"></b></span>
     <span class="tb-stat">영 <b id="hud-ter"></b></span>
+    <span class="tb-stat">해 <b id="hud-navy" style="color:#2898c8">0</b></span>
     <span class="tb-acts">행동 <b id="hud-acts">0</b>/3</span>
     <span class="tb-dom" id="hud-dom">🌍 0%</span>
     <button class="turn-btn" onclick="nextTurn()">다음 턴 ▶</button>
@@ -264,7 +269,9 @@ body.game-active{overflow:hidden;}
       <div id="ter-info"><div style="font-size:10px;color:var(--text3);padding:4px">
         지도에서 국가를 클릭하세요.<br><br>
         <span style="color:#4a8a2a">◆ 초록 점선</span> = 공략 가능<br>
-        <span style="color:#c04040">◆ 빨간 점선</span> = 적국 인접
+        <span style="color:#c04040">◆ 빨간 점선</span> = 적국 인접<br>
+        <span style="color:#2898c8">◆ 파란 점선</span> = 상륙 가능<br>
+        <br><span style="color:var(--text3)">해군 30 이상이면 상륙작전 가능</span>
       </div></div>
       <div class="panel-hdr" style="border-top:1px solid var(--border)">전황 일지</div>
       <div id="log-list"></div>
@@ -276,10 +283,12 @@ body.game-active{overflow:hidden;}
       <div class="stat-row"><div class="stat-label">군사력</div><div class="stat-bar"><div class="stat-fill" id="bar-mil" style="background:var(--red2)"></div></div><div class="stat-val" id="bv-mil"></div></div>
       <div class="stat-row"><div class="stat-label">경제력</div><div class="stat-bar"><div class="stat-fill" id="bar-eco" style="background:var(--green2)"></div></div><div class="stat-val" id="bv-eco"></div></div>
       <div class="stat-row"><div class="stat-label">정치력</div><div class="stat-bar"><div class="stat-fill" id="bar-pol" style="background:var(--blue2)"></div></div><div class="stat-val" id="bv-pol"></div></div>
+      <div class="stat-row"><div class="stat-label">해군력</div><div class="stat-bar"><div class="stat-fill" id="bar-navy" style="background:#2898c8"></div></div><div class="stat-val" id="bv-navy"></div></div>
       <div class="stat-row"><div class="stat-label">연구력</div><div class="stat-bar"><div class="stat-fill" id="bar-res" style="background:var(--amber2)"></div></div><div class="stat-val" id="bv-res"></div></div>
       <div class="stat-extra">
         턴 <span id="turn-label">1</span> | 공장 <span id="factory-label" style="color:var(--amber2)">0</span>개 +<span id="factory-inc" style="color:var(--amber2)">0</span>/턴<br>
-        세계 정복 <span id="dom-pct" style="color:var(--gold)">0%</span> | 승리 <span id="war-wins" style="color:var(--green2)">0</span>회
+        세계 정복 <span id="dom-pct" style="color:var(--gold)">0%</span> | 승리 <span id="war-wins" style="color:var(--green2)">0</span>회<br>
+        해군력 <span id="navy-stat" style="color:#2898c8">0</span> <span id="navy-status" style="color:var(--text3)"></span>
       </div>
     </div>
     <div class="action-panel"><div class="action-grid" id="action-grid"></div></div>
@@ -405,6 +414,108 @@ const ADJ={
   ARG:['CHL','BOL','PRY','BRA','URY'],CHL:['PER','BOL','ARG'],AUS:['IDN','NZL'],
 };
 
+
+
+// ══════════════════════════════════
+// 자원 지역 — 석유·희귀자원
+// ══════════════════════════════════
+// 점령 시 즉시 보너스 (eco, res)
+const OIL_REGIONS={
+  // 중동 — 대형 유전
+  SAU:{eco:22,res:8,label:'아라비아 대유전'},
+  IRQ:{eco:18,res:6,label:'메소포타미아 유전'},
+  IRN:{eco:20,res:7,label:'페르시아 유전'},
+  KWT:{eco:16,res:5,label:'쿠웨이트 유전'},
+  ARE:{eco:14,res:5,label:'걸프 유전'},
+  QAT:{eco:12,res:4,label:'카타르 가스전'},
+  BHR:{eco:10,res:3,label:'바레인 유전'},
+  OMN:{eco:12,res:4,label:'오만 유전'},
+  // 북아프리카
+  LBY:{eco:16,res:5,label:'리비아 유전'},
+  DZA:{eco:12,res:4,label:'알제리 가스전'},
+  // 중앙아시아
+  KAZ:{eco:14,res:6,label:'카스피해 유전'},
+  AZE:{eco:12,res:5,label:'바쿠 유전'},
+  TKM:{eco:10,res:4,label:'투르크멘 가스전'},
+  // 동남아시아
+  IDN:{eco:14,res:5,label:'네덜란드령 동인도 유전'},
+  // 아메리카
+  VEN:{eco:16,res:5,label:'베네수엘라 유전'},
+  MEX:{eco:12,res:4,label:'멕시코 유전'},
+  // 유럽/러시아
+  RUS:{eco:10,res:5,label:'시베리아 유전'},
+  NOR:{eco:8,res:3,label:'북해 유전'},
+  // 아프리카
+  NGA:{eco:12,res:4,label:'나이지리아 유전'},
+  AGO:{eco:10,res:3,label:'앙골라 유전'},
+  // 석탄/희귀자원
+  POL:{eco:6,res:8,label:'실레지아 탄전'},
+  CHN:{eco:6,res:6,label:'만주 자원'},
+  ZAF:{eco:6,res:8,label:'남아공 광산'},
+  ZMB:{eco:4,res:8,label:'구리벨트'},
+};
+
+// 석유 지역 여부 반환
+const isOilRegion=iso=>!!OIL_REGIONS[iso];
+
+// ══════════════════════════════════
+// 해군 — 연안국 & 해상 인접 데이터
+// ══════════════════════════════════
+// 바다를 접하는 국가 목록
+const COASTAL=new Set(['GBR','IRL','NOR','SWE','DNK','FIN','EST','LVA','LTU','POL','DEU','NLD','BEL','FRA','ESP','PRT','ITA','ALB','GRC','TUR','RUS','UKR','ROU','BGR','EGY','LBY','TUN','DZA','MAR','MRT','SEN','GIN','SLE','LBR','CIV','GHA','TGO','BEN','NGA','CMR','GAB','COG','AGO','NAM','ZAF','MOZ','TZA','KEN','SOM','ERI','DJI','SDN','ETH','MDG','MYS','IDN','PHL','JPN','KOR','PRK','CHN','VNM','KHM','THA','MMR','IND','PAK','IRN','IRQ','KWT','SAU','YEM','OMN','ARE','QAT','BHR','SYR','LBN','ISR','JOR','USA','CAN','MEX','CUB','BRA','ARG','CHL','PER','ECU','COL','VEN','URY','PRY','AUS','NZL','TWN']);
+
+// 해상 인접: 같은 바다를 공유하는 나라들
+// 대서양권, 지중해권, 태평양/인도양권 등 구역별로 정의
+const SEA_ZONES=[
+  // 북해/발트해
+  ['GBR','NOR','DNK','SWE','FIN','EST','LVA','LTU','POL','DEU','NLD','BEL'],
+  // 북대서양
+  ['GBR','IRL','FRA','ESP','PRT','USA','CAN'],
+  // 지중해
+  ['ESP','FRA','ITA','ALB','GRC','TUR','EGY','LBY','TUN','DZA','MAR','SYR','LBN','ISR'],
+  // 흑해
+  ['TUR','ROU','BGR','UKR','RUS'],
+  // 서아프리카
+  ['MAR','MRT','SEN','GIN','SLE','LBR','CIV','GHA','TGO','BEN','NGA','CMR','GAB','COG','AGO','NAM'],
+  // 동아프리카/인도양
+  ['EGY','SDN','ERI','DJI','SOM','KEN','TZA','MOZ','ZAF','MDG','IND','PAK','IRN','SAU','YEM','OMN','ARE'],
+  // 페르시아만
+  ['IRN','IRQ','KWT','SAU','QAT','BHR','ARE','OMN'],
+  // 동남아/태평양
+  ['CHN','JPN','KOR','PRK','TWN','PHL','VNM','KHM','THA','MMR','MYS','IDN','AUS','NZL'],
+  // 인도양 북부
+  ['IND','PAK','IRN','OMN','YEM','SAU','SOM','MDG','AUS'],
+  // 남미 대서양
+  ['BRA','ARG','URY','CHL','PER','ECU','COL','VEN'],
+  // 카리브해/중미
+  ['USA','MEX','CUB','COL','VEN'],
+  // 아프리카 남단
+  ['AGO','NAM','ZAF','MOZ'],
+  // 북극/노르웨이해
+  ['NOR','RUS','GBR','ISL'],
+];
+
+// 두 국가가 해상으로 인접하는지 반환
+function isNavalAdjacent(a,b){
+  return SEA_ZONES.some(z=>z.includes(a)&&z.includes(b));
+}
+
+// 상륙 가능한 ISO 목록 반환
+function getNavalTargets(){
+  if(!G.navy||G.navy<30)return new Set();
+  const mine=new Set(Object.entries(own).filter(([,v])=>v===G.nid).map(([k])=>k));
+  const myCoastal=[...mine].filter(iso=>COASTAL.has(iso));
+  const landAdj=getAdj(); // 육상 인접은 제외
+  const targets=new Set();
+  Object.entries(own).forEach(([iso,owner])=>{
+    if(owner===G.nid)return;
+    if(!COASTAL.has(iso))return;
+    if(landAdj.has(iso))return; // 육상 인접은 일반 전쟁으로
+    if(myCoastal.some(mc=>isNavalAdjacent(mc,iso)))targets.add(iso);
+  });
+  return targets;
+}
+
 const N2I={4:'AFG',8:'ALB',12:'DZA',24:'AGO',32:'ARG',36:'AUS',40:'AUT',50:'BGD',56:'BEL',64:'BTN',68:'BOL',76:'BRA',100:'BGR',104:'MMR',116:'KHM',120:'CMR',124:'CAN',140:'CAF',144:'LKA',152:'CHL',156:'CHN',170:'COL',178:'COG',180:'COD',192:'CUB',203:'CZE',204:'BEN',208:'DNK',218:'ECU',231:'ETH',232:'ERI',233:'EST',246:'FIN',250:'FRA',262:'DJI',266:'GAB',276:'DEU',288:'GHA',300:'GRC',320:'GTM',324:'GIN',332:'HTI',340:'HND',356:'IND',360:'IDN',364:'IRN',368:'IRQ',372:'IRL',376:'ISR',380:'ITA',392:'JPN',400:'JOR',398:'KAZ',404:'KEN',408:'PRK',410:'KOR',417:'KGZ',418:'LAO',422:'LBN',426:'LSO',428:'LVA',430:'LBR',434:'LBY',440:'LTU',450:'MDG',454:'MWI',466:'MLI',484:'MEX',496:'MNG',498:'MDA',504:'MAR',508:'MOZ',516:'NAM',524:'NPL',528:'NLD',554:'NZL',558:'NIC',562:'NER',566:'NGA',578:'NOR',586:'PAK',591:'PAN',600:'PRY',604:'PER',608:'PHL',616:'POL',634:'QAT',642:'ROU',643:'RUS',682:'SAU',686:'SEN',694:'SLE',706:'SOM',710:'ZAF',716:'ZWE',724:'ESP',729:'SDN',748:'SWZ',752:'SWE',756:'CHE',760:'SYR',762:'TJK',764:'THA',768:'TGO',780:'TTO',788:'TUN',792:'TUR',795:'TKM',800:'UGA',804:'UKR',784:'ARE',818:'EGY',826:'GBR',840:'USA',854:'BFA',858:'URY',860:'UZB',862:'VEN',704:'VNM',887:'YEM',894:'ZMB',31:'AZE',51:'ARM',268:'GEO',344:'HKG',348:'HUN',352:'ISL',388:'JAM',438:'LIE',442:'LUX',458:'MYS',470:'MLT',703:'SVK',705:'SVN',188:'CRI'};
 const I2N={DEU:'독일',AUT:'오스트리아',CZE:'체코',POL:'폴란드',BEL:'벨기에',NLD:'네덜란드',FRA:'프랑스',GBR:'영국',IRL:'아일랜드',NOR:'노르웨이',SWE:'스웨덴',DNK:'덴마크',FIN:'핀란드',EST:'에스토니아',LVA:'라트비아',LTU:'리투아니아',RUS:'소련',BLR:'벨라루스',UKR:'우크라이나',MDA:'몰도바',KAZ:'카자흐스탄',UZB:'우즈베키스탄',TKM:'투르크메니스탄',KGZ:'키르기스스탄',TJK:'타지키스탄',AZE:'아제르바이잔',ARM:'아르메니아',GEO:'조지아',HUN:'헝가리',ROU:'루마니아',BGR:'불가리아',GRC:'그리스',ALB:'알바니아',TUR:'터키',SYR:'시리아',LBN:'레바논',IRQ:'이라크',IRN:'이란',JOR:'요르단',SAU:'사우디아라비아',YEM:'예멘',OMN:'오만',ARE:'UAE',QAT:'카타르',BHR:'바레인',KWT:'쿠웨이트',ITA:'이탈리아',CHE:'스위스',ESP:'스페인',PRT:'포르투갈',LUX:'룩셈부르크',USA:'미국',CAN:'캐나다',MEX:'멕시코',CUB:'쿠바',BRA:'브라질',ARG:'아르헨티나',COL:'콜롬비아',PER:'페루',VEN:'베네수엘라',CHL:'칠레',BOL:'볼리비아',URY:'우루과이',PRY:'파라과이',ECU:'에콰도르',JPN:'일본',KOR:'조선',PRK:'북조선',CHN:'중국',TWN:'대만',MNG:'몽골',IND:'인도',PAK:'파키스탄',BGD:'방글라데시',MMR:'버마',LKA:'실론',VNM:'베트남',KHM:'캄보디아',LAO:'라오스',MYS:'말라야',IDN:'인도네시아',PHL:'필리핀',THA:'태국',AFG:'아프가니스탄',NPL:'네팔',AUS:'호주',NZL:'뉴질랜드',DZA:'알제리',MAR:'모로코',TUN:'튀니지',LBY:'리비아',EGY:'이집트',SDN:'수단',ETH:'에티오피아',SOM:'소말리아',ERI:'에리트레아',DJI:'지부티',KEN:'케냐',TZA:'탄자니아',UGA:'우간다',MDG:'마다가스카르',ZAF:'남아프리카',ZWE:'짐바브웨',ZMB:'잠비아',MOZ:'모잠비크',NGA:'나이지리아',GHA:'가나',SEN:'세네갈',CIV:'코트디부아르',MLI:'말리',BFA:'부르키나파소',NER:'니제르',TCD:'차드',CAF:'중앙아프리카',CMR:'카메룬',COG:'콩고',GAB:'가봉',GIN:'기니',BEN:'베냉',MRT:'모리타니',AGO:'앙골라',NAM:'나미비아',SVK:'슬로바키아',GTM:'과테말라'};
 
@@ -421,12 +532,13 @@ function initState(nid){
   const n=NATIONS.find(x=>x.id===nid);
   G={
     nid,nation:n,turn:1,year:1939,month:9,
-    mil:Math.min(100,30+n.bonus.mil),eco:Math.min(100,30+n.bonus.eco),
+    navy:Math.min(100,5+(n.bonus.mil>20?8:0)+(n.bonus.eco>20?5:0)),
+    mil:30+n.bonus.mil,eco:Math.min(100,30+n.bonus.eco),
     pol:Math.min(100,30+n.bonus.pol),res:Math.min(100,20+n.bonus.res),
     techs:n.techs.map(t=>({...t})),
     logs:[],selISO:null,actsUsed:0,actsUsedSet:new Set(),
     factQ:[],permEco:0,factCount:0,warCount:0,victories:0,
-    _25:false,_50:false,_75:false,
+    _25:false,_50:false,_75:false,_invasionQ:[],
   };
   own={};
   Object.entries(OWNER_1939).forEach(([k,v])=>own[k]=v);
@@ -472,6 +584,7 @@ async function initMap(){
 function drawMap(){
   if(!geoData)return;
   const adj=getAdj();
+  const navalTargets=getNavalTargets();
   mG.selectAll('.country').remove();
   mG.selectAll('.country')
     .data(geoData.features).enter().append('path')
@@ -481,6 +594,7 @@ function drawMap(){
       if(o===G.nid)c+=' player-own';
       if(iso===G.selISO)c+=' selected';
       else if(iso&&adj.has(iso)){c+=o==='neutral'?' adj-neutral':o!==G.nid?' adj-enemy':'';}
+      else if(iso&&navalTargets.has(iso)){c+=' naval-target';}
       return c;
     })
     .attr('d',pg)
@@ -503,7 +617,15 @@ function drawMap(){
     })
     // 클릭/터치 통합 핸들러
     .on('click',handleMapClick)
+    .on('touchstart',function(ev){
+      const t=ev.touches[0];
+      this._ts={x:t.clientX,y:t.clientY};
+    })
     .on('touchend',function(ev,d){
+      const t=ev.changedTouches[0];
+      const ts=this._ts||{x:t.clientX,y:t.clientY};
+      const dx=Math.abs(t.clientX-ts.x),dy=Math.abs(t.clientY-ts.y);
+      if(dx>8||dy>8)return; // 슬라이드/줌이면 무시
       ev.preventDefault();
       ev.stopPropagation();
       handleMapClick.call(this,ev,d);
@@ -527,13 +649,21 @@ function drawLegend(){
   msvg.select('.ml').remove();
   const lg=msvg.append('g').attr('class','ml').attr('transform','translate(8,8)');
   const E=[{id:'germany',n:'독일'},{id:'uk',n:'영국'},{id:'ussr',n:'소련'},{id:'usa',n:'미국'},{id:'japan',n:'일본'},{id:'france',n:'프랑스'},{id:'italy',n:'이탈리아'},{id:'china',n:'중국'},{id:'neutral',n:'중립'}];
-  lg.append('rect').attr('width',94).attr('height',12+E.length*14).attr('rx',3).attr('fill','rgba(6,14,24,.92)').attr('stroke','#141e28').attr('stroke-width',.5);
-  lg.append('text').attr('x',47).attr('y',11).attr('text-anchor','middle').attr('font-size',7).attr('fill','#3a4858').attr('font-family','sans-serif').text('세력 판도');
+  // 범례 하단에 상륙 가이드 추가는 별도 처리
+  const legH=12+E.length*14+36;
+  lg.append('rect').attr('width',100).attr('height',legH).attr('rx',3).attr('fill','rgba(6,14,24,.92)').attr('stroke','#141e28').attr('stroke-width',.5);
+  lg.append('text').attr('x',50).attr('y',11).attr('text-anchor','middle').attr('font-size',7).attr('fill','#3a4858').attr('font-family','sans-serif').text('세력 판도');
   E.forEach((e,i)=>{
     const y=18+i*14;
     lg.append('rect').attr('x',8).attr('y',y-4).attr('width',8).attr('height',7).attr('rx',1).attr('fill',COLORS[e.id]);
     lg.append('text').attr('x',21).attr('y',y+2).attr('font-size',8).attr('fill','#a8a090').attr('font-family','sans-serif').text(e.n);
   });
+  // 상륙 범례
+  const navalY=18+E.length*14+4;
+  lg.append('line').attr('x1',8).attr('y1',navalY-1).attr('x2',16).attr('y2',navalY-1).attr('stroke','#2898c8').attr('stroke-width',1.2).attr('stroke-dasharray','3,2');
+  lg.append('text').attr('x',21).attr('y',navalY+2).attr('font-size',8).attr('fill','#2898c8').attr('font-family','sans-serif').text('⚓상륙 가능');
+  const oilY=navalY+14;
+  lg.append('text').attr('x',8).attr('y',oilY+2).attr('font-size',9).attr('fill','#d09030').attr('font-family','sans-serif').text('🛢유전지역');
 }
 
 function tipShow(ev,iso,o,isAdj){
@@ -541,7 +671,9 @@ function tipShow(ev,iso,o,isAdj){
   const flag=NFLAGS[o]||'';
   const on=NNAMES[o]||o;
   const adj2=isAdj&&o!==G.nid?`<br><span style="color:#4a8a2a">◆ 클릭 → 공략 가능</span>`:'';
-  document.getElementById('tooltip').innerHTML=`<b>${name}</b><br>${flag} ${on}${adj2}`;
+  const navalT=getNavalTargets();
+  const adj3=(!isAdj&&navalT.has(iso)&&o!==G.nid)?`<br><span style="color:#2898c8">⚓ 클릭 → 상륙 가능</span>`:'';
+  document.getElementById('tooltip').innerHTML=`<b>${name}</b><br>${flag} ${on}${adj2}${adj3}`;
   document.getElementById('tooltip').style.display='block';
   tipMove(ev);
 }
@@ -564,6 +696,14 @@ function renderHUD(){
   document.getElementById('hud-nation').textContent=G.nation.name;
   document.getElementById('hud-date').textContent=`${G.year}년 ${mo[G.month-1]}`;
   ['mil','eco','pol','res'].forEach(k=>document.getElementById('hud-'+k).textContent=G[k]);
+  document.getElementById('hud-navy').textContent=G.navy||0;
+  const navySt=document.getElementById('navy-stat');
+  const navyStatusEl=document.getElementById('navy-status');
+  if(navySt)navySt.textContent=G.navy||0;
+  if(navyStatusEl){
+    const nv=G.navy||0;
+    navyStatusEl.textContent=nv>=80?'⚓ 무적함대':nv>=50?'⚓ 강력한 함대':nv>=30?'⚓ 상륙 가능':nv>=10?'건설 중...':'— 없음';
+  }
   document.getElementById('hud-ter').textContent=playerTer();
   document.getElementById('hud-acts').textContent=G.actsUsed;
   document.getElementById('turn-label').textContent=G.turn;
@@ -576,9 +716,11 @@ function renderHUD(){
   document.getElementById('hud-dom').textContent=`🌍 ${dom}%`;
 }
 function renderBars(){
-  [['mil','var(--red2)'],['eco','var(--green2)'],['pol','var(--blue2)'],['res','var(--amber2)']].forEach(([k,c])=>{
-    document.getElementById('bar-'+k).style.cssText=`width:${G[k]}%;background:${c}`;
-    document.getElementById('bv-'+k).textContent=G[k];
+  [['mil','var(--red2)'],['eco','var(--green2)'],['pol','var(--blue2)'],['res','var(--amber2)'],['navy','#2898c8']].forEach(([k,c])=>{
+    // mil/navy는 상한 없으므로 바는 100 기준으로 캡핑해서 표시
+    const pct=UNCAPPED.has(k)?Math.min(100,G[k]):G[k];
+    document.getElementById('bar-'+k).style.cssText=`width:${pct}%;background:${c}`;
+    document.getElementById('bv-'+k).textContent=G[k]; // 실제 수치 표시
   });
 }
 
@@ -599,27 +741,41 @@ function buildTerHTML(iso, isMob){
   const winPct=Math.round(calcWinRate(atkPow,defPow)*100);
   const blitzPct=Math.min(95,Math.round(calcWinRate(atkPow+15,defPow)*100));
 
-  const canAtk=!isOwn&&isAdj&&G.actsUsed<3&&!G.actsUsedSet.has('war')&&G.mil>=15&&G.eco>=8;
-  const canBlitz=!isOwn&&isAdj&&G.actsUsed<3&&!G.actsUsedSet.has('blitz')&&G.mil>=35&&G.eco>=14;
+  const atkUsed=G.actsUsedSet.has('atk');
+  const navalTargets=getNavalTargets();
+  const isNaval=navalTargets.has(iso);
+  const canAtk=!isOwn&&isAdj&&G.actsUsed<3&&!atkUsed&&G.mil>=15&&G.eco>=8;
+  const canBlitz=!isOwn&&isAdj&&G.actsUsed<3&&!atkUsed&&G.mil>=35&&G.eco>=14;
+  const canNaval=!isOwn&&isNaval&&G.actsUsed<3&&!atkUsed&&G.navy>=30&&G.mil>=20&&G.eco>=12;
 
-  let atkReason='',blitzReason='';
+  let atkReason='',blitzReason='',navalReason='';
   if(!isAdj){atkReason='인접하지 않음';blitzReason='인접하지 않음';}
   else if(G.actsUsed>=3){atkReason='행동력 소진';blitzReason='행동력 소진';}
+  else if(atkUsed){atkReason='이번 턴 전쟁 완료';blitzReason='이번 턴 전쟁 완료';}
   else{
-    if(G.actsUsedSet.has('war'))atkReason='이미 전쟁 선포함';
-    else if(G.mil<15)atkReason='군사력 15 필요';
+    if(G.mil<15)atkReason='군사력 15 필요';
     else if(G.eco<8)atkReason='경제력 8 필요';
-    if(G.actsUsedSet.has('blitz'))blitzReason='이미 사용함';
-    else if(G.mil<35)blitzReason='군사력 35 필요';
+    if(G.mil<35)blitzReason='군사력 35 필요';
     else if(G.eco<14)blitzReason='경제력 14 필요';
   }
+  if(!isNaval&&!isAdj){navalReason='해상 접근 불가';}
+  else if(isAdj){navalReason='육상 인접(일반전쟁 사용)';}
+  else if(G.actsUsed>=3){navalReason='행동력 소진';}
+  else if(atkUsed){navalReason='이번 턴 전쟁 완료';}
+  else if(G.navy<30){navalReason=`해군력 30 필요 (현재 ${G.navy})`;}
+  else if(G.mil<20){navalReason='군사력 20 필요';}
+  else if(G.eco<12){navalReason='경제력 12 필요';}
+
+  const navalWinPct=Math.round(calcWinRate(G.mil+(G.navy*0.4|0)-10,defPow)*100);
 
   const btnClass=isMob?'mob-atk-btn':'ter-atk-btn';
 
+  const oilInfo=OIL_REGIONS[iso];
   return `
-    <div class="ter-name">${flag} ${name}</div>
+    <div class="ter-name">${flag} ${name}${oilInfo?` <span style="color:#d09030;font-size:9px">🛢 유전</span>`:''}</div>
     <div class="ter-row">지배<span>${oName}</span></div>
     <div class="ter-row">상태<span style="color:${isOwn?'var(--gold2)':isAdj?'#c04040':'var(--text3)'}">${isOwn?'🟡 아군':isAdj?'⚠ 인접':'○ 원거리'}</span></div>
+    ${oilInfo&&!isOwn?`<div class="ter-row" style="color:#d09030">🛢 ${oilInfo.label}<span>경제 +${oilInfo.eco}</span></div>`:''}
     ${!isOwn?`
     <div class="ter-row">방어력<span style="color:var(--red2)">${defPow}</span></div>
     <div class="ter-row">내 군사력<span style="color:var(--gold)">${atkPow}</span></div>
@@ -630,13 +786,18 @@ function buildTerHTML(iso, isMob){
     <button class="${btnClass} blitz-btn" ${!canBlitz?'disabled':''} onclick="startBattle('${iso}','blitz')">
       ⚡ 전격전 — 군-22 경-14<br>
       <span style="font-size:${isMob?'11':'9'}px">${canBlitz?`승리 확률 ${blitzPct}%`:blitzReason}</span>
-    </button>`:'<div style="font-size:10px;color:var(--text3);margin-top:6px">아군 영토</div>'}`;
+    </button>
+    ${isNaval?`<button class="${btnClass} naval-btn" ${!canNaval?'disabled':''} onclick="startBattle('${iso}','naval')">
+      ⚓ 상륙작전 — 해군-15 군-20 경-12<br>
+      <span style="font-size:${isMob?'11':'9'}px">${canNaval?`승리 확률 ${navalWinPct}% (해군 보정 포함)`:navalReason}</span>
+    </button>`:''}
+    `:'<div style="font-size:10px;color:var(--text3);margin-top:6px">아군 영토</div>'}`;
 }
 
 function renderTerInfo(iso){
   const ip=document.getElementById('ter-info');
   if(!iso){
-    ip.innerHTML='<div style="font-size:10px;color:var(--text3);padding:4px">지도에서 국가를 클릭하세요.<br><br><span style="color:#4a8a2a">◆ 초록 점선</span> = 공략 가능<br><span style="color:#c04040">◆ 빨간 점선</span> = 적국 인접</div>';
+    ip.innerHTML='<div style="font-size:10px;color:var(--text3);padding:4px">지도에서 국가를 클릭하세요.<br><br><span style="color:#4a8a2a">◆ 초록 점선</span> = 공략 가능<br><span style="color:#c04040">◆ 빨간 점선</span> = 적국 인접<br><span style="color:#2898c8">◆ 파란 점선</span> = 상륙 가능</div>';
     return;
   }
   ip.innerHTML=buildTerHTML(iso,false);
@@ -657,11 +818,23 @@ document.getElementById('mob-ter-modal').addEventListener('click',function(e){
   if(e.target===this)closeMobTer();
 });
 
+// 방어력 캐시 — 같은 턴 내에서 iso별로 고정값 유지
+const _defCache={};
 function calcDefPower(iso,o){
-  const BASE={germany:72,uk:62,ussr:78,usa:68,japan:66,france:56,italy:50,china:44,neutral:18};
-  const base=BASE[o]||18;
+  const key=`${G.turn}_${iso}`;
+  if(_defCache[key]!==undefined)return _defCache[key];
+  const BASE={germany:72,uk:62,ussr:78,usa:68,japan:66,france:56,italy:50,china:44,neutral:38};
+  const base=BASE[o]||38;
   const terCount=Object.values(own).filter(v=>v===o).length;
-  return Math.round(base+terCount*0.8+Math.random()*8);
+  // 중립국: 주변 아군 영토가 많을수록 저항 강화 (고립 저항)
+  let neutralBonus=0;
+  if(o==='neutral'){
+    const adjCount=(ADJ[iso]||[]).filter(a=>own[a]===G.nid).length;
+    neutralBonus=adjCount*6; // 포위될수록 결사 저항
+  }
+  const val=Math.round(base+terCount*0.8+neutralBonus+Math.random()*10);
+  _defCache[key]=val;
+  return val;
 }
 function calcWinRate(atk,def){
   const ratio=atk/(def||1);
@@ -680,48 +853,72 @@ function startBattle(iso,mode){
   const adj=getAdj();
   if(!adj.has(iso))return;
   const isBlitz=mode==='blitz';
-  const milCost=isBlitz?22:12;
-  const ecoCost=isBlitz?14:8;
+  const isNaval=mode==='naval';
+  const milCost=isBlitz?22:isNaval?20:12;
+  const ecoCost=isBlitz?14:isNaval?12:8;
+  const navyCost=isNaval?15:0;
   if(G.mil<milCost||G.eco<ecoCost)return;
+  if(isNaval&&G.navy<30)return;
   if(G.actsUsed>=3)return;
-  if(G.actsUsedSet.has(isBlitz?'blitz':'war'))return;
+  if(G.actsUsedSet.has('atk'))return; // 턴당 전쟁 1회 제한
+  // 상륙작전은 해상 인접이어야 함, 일반/전격전은 육상 인접
+  if(isNaval){const nt=getNavalTargets();if(!nt.has(iso))return;}
+  else if(!adj.has(iso))return;
 
   const name=I2N[iso]||iso;
   const oName=NNAMES[o]||o;
   const defPow=calcDefPower(iso,o);
-  const atkBase=G.mil+(isBlitz?15:0);
+  // 상륙 보정: 해군력의 40%를 공격력에 추가, 하지만 방어측 +10 보너스(해안 방어)
+  const navalBonus=isNaval?Math.floor(G.navy*0.4):0;
+  const atkBase=G.mil+(isBlitz?15:0)+navalBonus;
+  const defBonus=isNaval?10:0;
 
   G.mil=Math.max(0,G.mil-milCost);
   G.eco=Math.max(0,G.eco-ecoCost);
+  if(isNaval)G.navy=Math.max(0,G.navy-navyCost);
   G.warCount++;
 
-  const result=simulateBattle(atkBase,defPow,isBlitz,name,oName);
+  const result=simulateBattle(atkBase,defPow+defBonus,isNaval?'naval':isBlitz?'blitz':'normal',name,oName);
 
   if(result.won){
     own[iso]=G.nid;G.victories++;
     G.mil=Math.max(0,G.mil-result.atkLoss);
-    addLog(`🏆 ${name} 점령! (${result.turns}라운드, 피해 군${result.atkLoss})`,'won');
+    const logPrefix=isNaval?'⚓':'🏆';
+    addLog(`${logPrefix} ${name} ${isNaval?'상륙 성공':'점령'}! (${result.turns}라운드, 피해 군${result.atkLoss})`,'won');
+    // 중립국 점령 시 국제 비난 — 정치력 손실
+    if(o==='neutral'){G.pol=Math.max(0,G.pol-8);addLog(`중립국 침략으로 정치력 -8 (국제 비난)`);}
+    // 석유 지역 보너스
+    const oilBonus=OIL_REGIONS[iso];
+    if(oilBonus){G.eco=Math.min(100,G.eco+oilBonus.eco);G.res=Math.min(100,G.res+oilBonus.res);addLog(`🛢 ${name} 유전 확보! 경제 +${oilBonus.eco}, 연구 +${oilBonus.res}`,'eco');}
     checkDom();
   } else {
     G.mil=Math.max(0,G.mil-result.atkLoss);
-    addLog(`💀 ${name} 공략 실패. 피해 군${result.atkLoss}`,'war');
+    const failPrefix=isNaval?'🌊':'💀';
+    addLog(`${failPrefix} ${name} ${isNaval?'상륙 실패':'공략 실패'}. 피해 군${result.atkLoss}`,'war');
+    if(o==='neutral'){G.pol=Math.max(0,G.pol-3);addLog(`중립국 침략 실패 — 정치력 -3`);}
   }
 
   G.actsUsed++;
-  G.actsUsedSet.add(isBlitz?'blitz':'war');
+  G.actsUsedSet.add('atk'); // war/blitz 구분 없이 atk 하나로
 
-  showBattleUI(iso,name,oName,o,isBlitz,atkBase,defPow,result);
+  showBattleUI(iso,name,oName,o,isBlitz,isNaval,navalBonus,atkBase,defPow+defBonus,result);
   renderAll();
   renderTerInfo(iso);
 }
 
-function simulateBattle(atkPow,defPow,isBlitz,atkName,defName){
+function simulateBattle(atkPow,defPow,mode,atkName,defName){
+  const isBlitz=mode==='blitz';
+  const isNaval=mode==='naval';
   const lines=[];
   let atk=atkPow,def=defPow;
   let atkTot=0,defTot=0;
-  const maxR=isBlitz?4:7;
-  const atkTactics=['전차 돌격','포병 집중 사격','항공 폭격','보병 돌격','측면 우회 기동','화력 집중','공수부대 투입'];
-  const defTactics=['방어선 구축','반격 실시','저격수 교란','지뢰 매설','예비대 투입','진지 사수','포병 방어'];
+  const maxR=isBlitz?4:isNaval?5:7;
+  const atkTactics=isNaval
+    ?['함포 지원 사격','상륙정 돌격','해병대 투입','항공 모함 공습','교두보 확보','기습 상륙','해안 포격']
+    :['전차 돌격','포병 집중 사격','항공 폭격','보병 돌격','측면 우회 기동','화력 집중','공수부대 투입'];
+  const defTactics=isNaval
+    ?['해안 포대 반격','기뢰 저지선','예비대 반격','참호 방어','해안 방어선 사수','대전차 포격','격렬한 저항']
+    :['방어선 구축','반격 실시','저격수 교란','지뢰 매설','예비대 투입','진지 사수','포병 방어'];
   let r;
   for(r=1;r<=maxR;r++){
     const ar=Math.floor(atk*(0.28+Math.random()*0.44));
@@ -747,9 +944,9 @@ function simulateBattle(atkPow,defPow,isBlitz,atkName,defName){
   return {won,turns:r,lines,atkTot,defTot,atkLoss,atkFinal:atk,defFinal:def};
 }
 
-function showBattleUI(iso,name,oName,o,isBlitz,atkPow,defPow,res){
-  document.getElementById('bt-title').textContent=`${isBlitz?'⚡ 전격전':'⚔ 전쟁'} — ${name}`;
-  document.getElementById('bt-sub').textContent=`${G.nation.name} vs ${oName}`;
+function showBattleUI(iso,name,oName,o,isBlitz,isNaval,navalBonus,atkPow,defPow,res){
+  document.getElementById('bt-title').textContent=`${isNaval?'⚓ 상륙작전':isBlitz?'⚡ 전격전':'⚔ 전쟁'} — ${name}`;
+  document.getElementById('bt-sub').textContent=`${G.nation.name} vs ${oName}${isNaval?' (해상 상륙)':''}`; 
   const total=atkPow+defPow;
   const ap=Math.round(atkPow/total*100);
   const dp=100-ap;
@@ -760,7 +957,7 @@ function showBattleUI(iso,name,oName,o,isBlitz,atkPow,defPow,res){
         <div class="bs-flag">${G.nation.flag}</div>
         <div class="bs-name">${G.nation.name}</div>
         <div class="bs-pow a">${atkPow}</div>
-        <div class="bs-sub">${isBlitz?'전격전 +15 보정':'표준 공격'}<br>예상 승률 ${winR}%</div>
+        <div class="bs-sub">${isNaval?`해군 +${navalBonus} 보정`:isBlitz?'전격전 +15 보정':'표준 공격'}<br>예상 승률 ${winR}%</div>
       </div>
       <div class="bvs">VS</div>
       <div class="battle-side def">
@@ -825,6 +1022,10 @@ const ACTS=[
    exec(){showTechModal();}},
   {id:'defense',icon:'🛡',name:'방어 강화',cost:'군-8 경-8',needs:{mil:8,eco:8},desc:'군사력 +10, 정치력 +8.',
    exec(){applyEff({mil:10,pol:8,eco:-8});G.mil=Math.max(0,G.mil-8);addLog('방어 강화.','eco');}},
+  {id:'navy_build',icon:'⚓',name:'해군 건설',cost:'경 -16',needs:{eco:16},desc:'해군력 +20. 30 이상이면 상륙작전 가능.',
+   exec(){G.eco=Math.max(0,G.eco-16);G.navy=Math.min(100,(G.navy||0)+20);addLog(`해군 건설. 해군력 +20 → 현재 ${G.navy}`,'eco');}},
+  {id:'navy_upgrade',icon:'🚢',name:'함대 증강',cost:'경-22 연-10',needs:{eco:22,res:10},desc:'해군력 +35, 군사력 +8. 강력한 함대.',
+   exec(){G.eco=Math.max(0,G.eco-22);G.res=Math.max(0,G.res-10);G.navy=Math.min(100,(G.navy||0)+35);applyEff({mil:8});addLog(`함대 증강 완료. 해군력 → ${G.navy}`,'tech');}},
 ];
 
 function canAct(a){
@@ -876,17 +1077,73 @@ function nextTurn(){
   G.factQ=still;
   const ter=playerTer();
   G.eco=Math.min(100,G.eco+2+Math.floor(ter*0.6)+G.permEco);
-  G.mil=Math.min(100,G.mil+1+Math.floor(ter*0.2));
+  G.mil=G.mil+1+Math.floor(ter*0.2);
   G.pol=Math.min(100,G.pol+1);G.res=Math.min(100,G.res+1);
   if(G.nid==='usa')G.eco=Math.min(100,G.eco+3);
-  if(G.nid==='ussr')G.mil=Math.min(100,G.mil+2);
+  if(G.nid==='ussr')G.mil=G.mil+2;
   if(G.nid==='uk')G.pol=Math.min(100,G.pol+2);
-  if(G.nid==='germany'&&ter>4)G.mil=Math.min(100,G.mil+2);
+  if(G.nid==='germany'&&ter>4)G.mil=G.mil+2;
+  if(G.nid==='uk'||G.nid==='japan')G.navy=Math.min(100,(G.navy||0)+2); // 해양 국가 보너스
+  // 연안 영토 보유에 따른 해군 유지 (소폭 감쇠 + 연안 영토 보너스)
+  const myCoastalCount=Object.entries(own).filter(([k,v])=>v===G.nid&&(typeof COASTAL!=='undefined'&&COASTAL.has(k))).length;
+  if(myCoastalCount>0)G.navy=Math.min(100,(G.navy||0)+Math.floor(myCoastalCount*0.3));
   aiExpand();
   G.turn++;G.month+=3;if(G.month>12){G.month-=12;G.year++;}
   G.actsUsed=0;G.actsUsedSet=new Set();
   addLog(`${G.year}년 ${G.month}월 — 영토 ${ter}국, 공장 +${G.permEco}/턴`,'');
   renderAll();renderTerInfo(G.selISO);
+  // 침략 알림 처리 (순차 표시)
+  if(G._invasionQ&&G._invasionQ.length){
+    processInvasionQueue();
+  }
+}
+
+function processInvasionQueue(){
+  if(!G._invasionQ||!G._invasionQ.length)return;
+  const inv=G._invasionQ.shift();
+  // 이미 빼앗겼으면 스킵
+  if(own[inv.iso]!==G.nid){processInvasionQueue();return;}
+  showInvasionAlert(inv);
+}
+
+function showInvasionAlert(inv){
+  const html=`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <span style="font-size:28px">${inv.nFlag}</span>
+      <div>
+        <div style="font-family:'Cinzel',serif;font-size:12px;color:var(--red2)">${inv.nn}의 침략!</div>
+        <div style="font-size:10px;color:var(--text3)">공격 전력 ${inv.atkPow}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">
+      <b style="color:var(--gold)">${inv.tName}</b>이(가) 침략을 받고 있습니다.<br>
+      현재 방어력(군사력): <b style="color:var(--gold2)">${inv.defPow}</b><br>
+      방어 성공 확률: <b style="color:${inv.defWin>=50?'var(--green2)':'var(--red2)'}">${inv.defWin}%</b>
+    </div>`;
+  showModal(`⚔ ${inv.tName} 침략 경보!`,html,[
+    {label:`🛡 전력 방어 — 군사력 소모`,cls:'mbtn-gold',fn(){
+      // 방어전
+      const won=Math.random()<inv.defWin/100;
+      if(won){
+        addLog(`🛡 ${inv.tName} 방어 성공! ${inv.nn}을 격퇴!`,'won');
+        G.mil=Math.max(0,G.mil-Math.floor(inv.atkPow*0.15));
+      } else {
+        own[inv.iso]=inv.nid;
+        addLog(`💀 ${inv.tName} 함락! ${inv.nn}에게 빼앗겼다. 군사력 감소`,'ai');
+        G.mil=Math.max(0,G.mil-Math.floor(inv.atkPow*0.25));
+      }
+      renderAll();renderTerInfo(G.selISO);
+      // 다음 알림
+      setTimeout(()=>processInvasionQueue(),400);
+    }},
+    {label:'🚩 포기 — 영토 양도',cls:'mbtn-gray',fn(){
+      own[inv.iso]=inv.nid;
+      addLog(`🚩 ${inv.tName} 포기. ${inv.nn}에 양도. 정치력 -5`,'ai');
+      G.pol=Math.max(0,G.pol-5);
+      renderAll();renderTerInfo(G.selISO);
+      setTimeout(()=>processInvasionQueue(),400);
+    }},
+  ]);
 }
 
 function aiExpand(){
@@ -900,12 +1157,20 @@ function aiExpand(){
     }
     if(Math.random()<0.032&&nt>5){
       const my=Object.entries(own).filter(([,v])=>v===G.nid).map(([k])=>k);
-      if(my.length&&Math.random()<0.25){
-        const t=my[Math.floor(Math.random()*my.length)];
-        own[t]=nid;
+      // 인접한 내 영토만 침략 대상
+      const adjToEnemy=my.filter(iso=>(ADJ[iso]||[]).some(a=>own[a]===nid));
+      const target=adjToEnemy.length?adjToEnemy[Math.floor(Math.random()*adjToEnemy.length)]:null;
+      if(target&&Math.random()<0.3){
+        const tName=I2N[target]||target;
         const nn={germany:'독일',uk:'영국',ussr:'소련',usa:'미국',japan:'일본',france:'프랑스',italy:'이탈리아',china:'중국'}[nid]||nid;
-        addLog(`⚠ ${I2N[t]||t}이 ${nn}에 빼앗겼다!`,'ai');
-        G.mil=Math.max(0,G.mil-3);
+        const nFlag={germany:'🇩🇪',uk:'🇬🇧',ussr:'🇷🇺',usa:'🇺🇸',japan:'🇯🇵',france:'🇫🇷',italy:'🇮🇹',china:'🇨🇳'}[nid]||'🏳';
+        // 방어력 계산
+        const defPow=G.mil;
+        const atkPow=Math.round(60+nt*1.2+Math.random()*15);
+        const defWin=calcWinRate(defPow,atkPow);
+        // 방어 알림 큐에 추가
+        G._invasionQ=G._invasionQ||[];
+        G._invasionQ.push({iso:target,tName,nid,nn,nFlag,atkPow,defPow,defWin:Math.round(defWin*100)});
       }
     }
   });
@@ -928,9 +1193,13 @@ function showModal(title,body,btns){
 }
 function closeModal(){document.getElementById('modal').classList.remove('show');}
 
+// mil/navy는 상한 없음, 나머지는 100 상한
+const UNCAPPED=new Set(['mil','navy']);
 function applyEff(e){
   Object.entries(e).forEach(([k,v])=>{
-    if(G[k]!==undefined)G[k]=Math.min(100,Math.max(0,G[k]+v));
+    if(G[k]!==undefined){
+      G[k]=UNCAPPED.has(k)?Math.max(0,G[k]+v):Math.min(100,Math.max(0,G[k]+v));
+    }
   });
 }
 function addLog(text,type=''){
@@ -946,7 +1215,7 @@ function addLog(text,type=''){
 // ══════════════════════════════════
 function endGame(dom=false){
   const ter=playerTer(),d=domPct();
-  const score=Math.round((G.mil+G.eco+G.pol+G.res)/4+ter*5+G.factCount*8+G.victories*3);
+  const score=Math.round((G.mil+G.eco+G.pol+G.res+(G.navy||0))/5+ter*5+G.factCount*8+G.victories*3);
   document.getElementById('end-title').textContent=dom?'🌍 세계 정복 달성!':'전쟁 종결';
   document.getElementById('end-sub').textContent=`${G.year}년 — ${G.nation.name} | ${G.turn-1}턴 | 전쟁 ${G.warCount}회 | 승리 ${G.victories}회`;
   ['mil','eco','pol','res'].forEach(k=>document.getElementById('es-'+k).textContent=G[k]);
